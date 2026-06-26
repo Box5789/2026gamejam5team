@@ -31,5 +31,10 @@ namespace KimbapGame.Kitchen
             localPoint.z = placedItemLocalZ;
             return transform.TransformPoint(localPoint);
         }
+
+        public Vector3 GetCenterWorldPoint()
+        {
+            return transform.TransformPoint(new Vector3(0f, 0f, placedItemLocalZ));
+        }
     }
 }

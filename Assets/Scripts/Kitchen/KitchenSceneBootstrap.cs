@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using KimbapGame.Data;
+using KimbapGame.Order;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -36,6 +37,7 @@ namespace KimbapGame.Kitchen
 
             KitchenRicePaintBridge riceBridge = new GameObject("KitchenRicePaintBridge").AddComponent<KitchenRicePaintBridge>();
             riceBridge.Configure(null, null, camera);
+            riceBridge.SetPaintingEnabled(false);
             controller.ConfigureSceneReferences(dropZone, riceBridge);
 
             Button nextButton = BuildButton(
@@ -49,10 +51,7 @@ namespace KimbapGame.Kitchen
             navigator.Configure(movingTablesRoot, nextButton, TableSpacing, 4);
             navigator.TableChanged += index =>
             {
-                if (index == 3)
-                {
-                    controller.CompleteAndSave();
-                }
+                riceBridge.SetPaintingEnabled(index == 1);
             };
         }
 
@@ -154,11 +153,11 @@ namespace KimbapGame.Kitchen
                 new Color(0.94f, 0.96f, 0.93f, 1f),
                 -5);
             KitchenPlaceholderFactory.CreateLabel("Complete Table", tableRoot, new Vector3(0f, 2.75f, -0.1f), 52, 0.09f);
-            KitchenPlaceholderFactory.CreateLabel("Completed / Saved XLSX", tableRoot, new Vector3(0f, 1.25f, -0.1f), 44, 0.075f);
-            BuildCompleteTableButton(tableRoot, controller, camera);
+            KitchenPlaceholderFactory.CreateLabel("Roll / Complete", tableRoot, new Vector3(0f, 1.25f, -0.1f), 44, 0.075f);
+            BuildCompleteTableButtons(tableRoot, controller, camera);
         }
 
-        private static void BuildCompleteTableButton(Transform parent, KitchenController controller, Camera camera)
+        private static void BuildCompleteTableButtons(Transform parent, KitchenController controller, Camera camera)
         {
             GameObject canvasObject = new GameObject("CompleteTableCanvas");
             canvasObject.transform.SetParent(parent, false);
@@ -174,8 +173,38 @@ namespace KimbapGame.Kitchen
             canvasRect.sizeDelta = new Vector2(220f, 80f);
             canvasRect.localScale = new Vector3(0.01f, 0.01f, 0.01f);
 
-            GameObject buttonObject = new GameObject("CompleteButton");
-            buttonObject.transform.SetParent(canvasObject.transform, false);
+            KitchenRollAnimator rollAnimator = parent.gameObject.AddComponent<KitchenRollAnimator>();
+            rollAnimator.Configure(controller);
+
+            Button rollButton = BuildWorldButton(canvasObject.transform, "RollButton", "\uB9D0\uAE30");
+            Button completeButton = BuildWorldButton(canvasObject.transform, "CompleteButton", "\uC644\uB8CC");
+            Button submitButton = BuildWorldButton(canvasObject.transform, "SubmitButton", "\uC81C\uCD9C");
+            submitButton.gameObject.AddComponent<KitchenReturnNavigator>();
+            completeButton.gameObject.SetActive(false);
+            submitButton.gameObject.SetActive(false);
+
+            rollButton.onClick.AddListener(() =>
+            {
+                rollButton.interactable = false;
+                rollAnimator.PlayRoll(() =>
+                {
+                    rollButton.gameObject.SetActive(false);
+                    completeButton.gameObject.SetActive(true);
+                });
+            });
+            completeButton.onClick.AddListener(() =>
+            {
+                rollAnimator.FinalizeRoll();
+                controller.CompleteAndSave();
+                completeButton.gameObject.SetActive(false);
+                submitButton.gameObject.SetActive(true);
+            });
+        }
+
+        private static Button BuildWorldButton(Transform parent, string name, string text)
+        {
+            GameObject buttonObject = new GameObject(name);
+            buttonObject.transform.SetParent(parent, false);
             RectTransform buttonRect = buttonObject.AddComponent<RectTransform>();
             buttonRect.anchorMin = new Vector2(0.5f, 0.5f);
             buttonRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -187,7 +216,6 @@ namespace KimbapGame.Kitchen
             image.color = new Color(0.15f, 0.7f, 0.68f, 1f);
 
             Button button = buttonObject.AddComponent<Button>();
-            button.onClick.AddListener(() => controller.CompleteAndSave());
 
             GameObject textObject = new GameObject("Text");
             textObject.transform.SetParent(buttonObject.transform, false);
@@ -198,7 +226,7 @@ namespace KimbapGame.Kitchen
             textRect.offsetMax = Vector2.zero;
 
             Text label = textObject.AddComponent<Text>();
-            label.text = "Complete";
+            label.text = text;
             label.alignment = TextAnchor.MiddleCenter;
             label.color = Color.white;
             label.fontSize = 28;
@@ -207,6 +235,8 @@ namespace KimbapGame.Kitchen
             {
                 label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
             }
+
+            return button;
         }
 
         private static void CreateIngredientSource(

@@ -70,7 +70,9 @@ namespace KimbapGame.Kitchen
             }
 
             transform.SetParent(dropZone.PlacedItemRoot, true);
-            transform.position = dropZone.GetSnappedWorldPoint(transform.position);
+            transform.position = definition.Category == KitchenIngredientCategory.Seaweed
+                ? dropZone.GetCenterWorldPoint()
+                : dropZone.GetSnappedWorldPoint(transform.position);
             int droppedSortingOrder = controller.RegisterDroppedObject(definition, gameObject);
             ApplySortingOrder(droppedSortingOrder);
 
