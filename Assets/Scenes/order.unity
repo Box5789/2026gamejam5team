@@ -511,7 +511,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sheetCsvUrl: https://docs.google.com/spreadsheets/d/13gq3ZV-LhXbPbYeEcljMLyYC_6GyXHLdkcgjHbalqcI/export?format=csv&gid=650686695
-  kitchenSceneName: Kitchen
+  kitchenSceneName: kitchen
   personImage: {fileID: 0}
   personSpriteRenderer: {fileID: 0}
   conversationText: {fileID: 0}

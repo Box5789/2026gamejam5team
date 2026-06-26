@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using KimbapGame.Data;
+using KimbapGame.Evaluation;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,7 +18,7 @@ namespace KimbapGame.Order
 
         [Header("Scene")]
         [SerializeField]
-        private string kitchenSceneName = "Kitchen";
+        private string kitchenSceneName = "kitchen";
 
         [Header("UI")]
         [SerializeField]
@@ -121,6 +122,24 @@ namespace KimbapGame.Order
             if (!string.IsNullOrWhiteSpace(currentOrder.hintImageName))
             {
                 SetPersonImage(currentOrder.hintImageName);
+            }
+        }
+
+        public void ShowEvaluationResult(KimbapEvaluationResult result)
+        {
+            if (result == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.responseDialogue))
+            {
+                SetConversation(result.responseDialogue);
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.responseImageName))
+            {
+                SetPersonImage(result.responseImageName);
             }
         }
 
