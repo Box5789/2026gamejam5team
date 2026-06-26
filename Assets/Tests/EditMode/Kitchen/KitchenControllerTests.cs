@@ -147,6 +147,32 @@ namespace KimbapGame.Tests.Kitchen
             Assert.AreEqual(1, controller.PreparedKimbap.fillings.Count);
         }
 
+        [Test]
+        public void RicePaintBridge_DisablingPaintingClearsSelectedRice()
+        {
+            GameObject bridgeObject = new GameObject("KitchenRicePaintBridge");
+            KitchenRicePaintBridge bridge = bridgeObject.AddComponent<KitchenRicePaintBridge>();
+            KitchenIngredientDefinition rice = CreateDefinition(KitchenIngredientCategory.Rice, IngredientType.Rice);
+
+            try
+            {
+                bridge.SetPaintingEnabled(true);
+                bridge.SelectRice(rice, controller);
+
+                Assert.IsTrue(bridge.PaintingEnabled);
+                Assert.IsTrue(bridge.HasSelectedRice);
+
+                bridge.SetPaintingEnabled(false);
+
+                Assert.IsFalse(bridge.PaintingEnabled);
+                Assert.IsFalse(bridge.HasSelectedRice);
+            }
+            finally
+            {
+                Object.DestroyImmediate(bridgeObject);
+            }
+        }
+
         private static KitchenIngredientDefinition CreateDefinition(KitchenIngredientCategory category, IngredientType ingredientType)
         {
             return CreateDefinition(category, ingredientType, Color.white);

@@ -14,6 +14,11 @@ namespace KimbapGame.Kitchen
         private KitchenController controller;
         private KitchenIngredientDefinition selectedRice;
         private bool hasRecordedSelectedRice;
+        private bool paintingEnabled;
+
+        public bool PaintingEnabled => paintingEnabled;
+
+        public bool HasSelectedRice => selectedRice != null;
 
         public void Configure(SpreadableSurface surface, SpreadInputController inputController, Camera targetCamera)
         {
@@ -52,6 +57,12 @@ namespace KimbapGame.Kitchen
 
         public void SelectRice(KitchenIngredientDefinition riceDefinition, KitchenController sourceController)
         {
+            if (!paintingEnabled)
+            {
+                ClearSelection();
+                return;
+            }
+
             selectedRice = riceDefinition;
             controller = sourceController;
             hasRecordedSelectedRice = false;
@@ -65,7 +76,7 @@ namespace KimbapGame.Kitchen
 
         private void Update()
         {
-            if (selectedRice == null || !Input.GetMouseButton(0))
+            if (!paintingEnabled || selectedRice == null || !Input.GetMouseButton(0))
             {
                 return;
             }
@@ -83,6 +94,22 @@ namespace KimbapGame.Kitchen
                     hasRecordedSelectedRice = true;
                 }
             }
+        }
+
+        public void SetPaintingEnabled(bool enabled)
+        {
+            paintingEnabled = enabled;
+
+            if (!paintingEnabled)
+            {
+                ClearSelection();
+            }
+        }
+
+        public void ClearSelection()
+        {
+            selectedRice = null;
+            hasRecordedSelectedRice = false;
         }
 
         private SpreadableSurface GetActiveSurface()
