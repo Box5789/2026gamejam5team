@@ -33,10 +33,13 @@ namespace KimbapGame.Tests.Kitchen
             }
 
             GameObject completeButton = GameObject.Find("CompleteButton");
+            GameObject nextButton = GameObject.Find("NextTableButton");
             GameObject kitchenCanvas = GameObject.Find("KitchenCanvas");
 
             Assert.IsNotNull(completeButton);
+            Assert.IsNotNull(nextButton);
             Assert.IsNotNull(kitchenCanvas);
+            Assert.IsTrue(nextButton.transform.IsChildOf(kitchenCanvas.transform));
             Assert.IsFalse(completeButton.transform.IsChildOf(kitchenCanvas.transform));
             Assert.IsTrue(completeButton.transform.IsChildOf(GameObject.Find("Complete Table").transform));
             Assert.IsNotNull(completeButton.GetComponent<Button>());

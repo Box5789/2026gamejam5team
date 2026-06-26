@@ -235,21 +235,7 @@ namespace KimbapGame.Kitchen
 
         private static Button BuildButton(string name, string text, Vector2 anchor, Vector2 anchoredPosition, Vector2 size)
         {
-            Canvas canvas = FindObjectOfType<Canvas>();
-            if (canvas == null)
-            {
-                GameObject canvasObject = new GameObject("KitchenCanvas");
-                canvas = canvasObject.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-                CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                scaler.referenceResolution = new Vector2(1280f, 720f);
-                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-                scaler.matchWidthOrHeight = 0.5f;
-
-                canvasObject.AddComponent<GraphicRaycaster>();
-            }
+            Canvas canvas = FindOverlayCanvas();
 
             GameObject buttonObject = new GameObject(name);
             buttonObject.transform.SetParent(canvas.transform, false);
@@ -284,6 +270,47 @@ namespace KimbapGame.Kitchen
             }
 
             return button;
+        }
+
+        private static Canvas FindOverlayCanvas()
+        {
+            GameObject existingCanvasObject = GameObject.Find("KitchenCanvas");
+            if (existingCanvasObject != null && existingCanvasObject.TryGetComponent(out Canvas existingCanvas))
+            {
+                existingCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                EnsureOverlayCanvasComponents(existingCanvasObject);
+                return existingCanvas;
+            }
+
+            GameObject canvasObject = new GameObject("KitchenCanvas");
+            Canvas canvas = canvasObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            EnsureOverlayCanvasComponents(canvasObject);
+            return canvas;
+        }
+
+        private static void EnsureOverlayCanvasComponents(GameObject canvasObject)
+        {
+            if (!canvasObject.TryGetComponent(out CanvasScaler scaler))
+            {
+                scaler = canvasObject.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1280f, 720f);
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                scaler.matchWidthOrHeight = 0.5f;
+            }
+            else
+            {
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1280f, 720f);
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                scaler.matchWidthOrHeight = 0.5f;
+            }
+
+            if (!canvasObject.TryGetComponent<GraphicRaycaster>(out _))
+            {
+                canvasObject.AddComponent<GraphicRaycaster>();
+            }
         }
 
         private static IReadOnlyList<KitchenIngredientDefinition> BuildSeaweedDefinitions()
