@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using KimbapGame.Data;
+using KimbapGame.Order;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -177,7 +178,10 @@ namespace KimbapGame.Kitchen
 
             Button rollButton = BuildWorldButton(canvasObject.transform, "RollButton", "\uB9D0\uAE30");
             Button completeButton = BuildWorldButton(canvasObject.transform, "CompleteButton", "\uC644\uB8CC");
+            Button submitButton = BuildWorldButton(canvasObject.transform, "SubmitButton", "\uC81C\uCD9C");
+            submitButton.gameObject.AddComponent<KitchenReturnNavigator>();
             completeButton.gameObject.SetActive(false);
+            submitButton.gameObject.SetActive(false);
 
             rollButton.onClick.AddListener(() =>
             {
@@ -192,6 +196,8 @@ namespace KimbapGame.Kitchen
             {
                 rollAnimator.FinalizeRoll();
                 controller.CompleteAndSave();
+                completeButton.gameObject.SetActive(false);
+                submitButton.gameObject.SetActive(true);
             });
         }
 

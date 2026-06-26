@@ -10,7 +10,8 @@ namespace KimbapGame.Kitchen
     {
         private const int EndCapSortingOrder = 158;
         private const int BodySortingOrder = 160;
-        private const int RollSortingOrder = 170;
+        private const int CapturedFillingSortingBase = 190;
+        private const int RollSortingOrder = 220;
         private const float MinimumVisibleScale = 0.001f;
 
         [SerializeField] private KitchenController controller;
@@ -29,6 +30,7 @@ namespace KimbapGame.Kitchen
         private Vector3 originalSeaweedScale;
         private Vector3 originalSeaweedPosition;
         private Bounds originalSeaweedBounds;
+        private int capturedFillingSlotCount;
         private bool isRolling;
         private bool hasPreparedRoll;
 
@@ -64,6 +66,10 @@ namespace KimbapGame.Kitchen
                     : completedKimbapObject.GetComponentsInChildren<SpriteRenderer>(true).Length - 1;
             }
         }
+
+        public Bounds RollBoundsForTests => rollRenderer == null ? default : rollRenderer.bounds;
+
+        public int RollSortingOrderForTests => rollRenderer == null ? int.MinValue : rollRenderer.sortingOrder;
 
         public void Configure(KitchenController controller)
         {
@@ -176,6 +182,7 @@ namespace KimbapGame.Kitchen
             DestroyRollVisual();
             DestroyCompletedKimbap();
             fillingStates.Clear();
+            capturedFillingSlotCount = 0;
 
             originalSeaweedScale = seaweedTransform.localScale;
             originalSeaweedPosition = seaweedTransform.position;
@@ -269,21 +276,37 @@ namespace KimbapGame.Kitchen
                     continue;
                 }
 
-                state.Capture(rollObject.transform.position);
-                ApplyFillingSortingOrder(state.Transform.gameObject, RollSortingOrder + 1 + i);
+                state.Capture(capturedFillingSlotCount);
+                capturedFillingSlotCount++;
+                ApplyFillingSortingOrder(state.Transform.gameObject, CapturedFillingSortingBase + i);
             }
         }
 
         private void MoveCapturedFillings()
         {
-            if (rollObject == null)
+            if (rollObject == null || rollRenderer == null || capturedFillingSlotCount <= 0)
             {
                 return;
             }
 
+            Bounds rollBounds = rollRenderer.bounds;
+            float usableHeight = Mathf.Max(0.01f, rollBounds.size.y * 0.3f);
+            float startY = capturedFillingSlotCount == 1 ? 0f : -usableHeight * 0.5f;
+            float stepY = capturedFillingSlotCount == 1 ? 0f : usableHeight / (capturedFillingSlotCount - 1);
+
             for (int i = 0; i < fillingStates.Count; i++)
             {
-                fillingStates[i].MoveWithRoll(rollObject.transform.position);
+                FillingRollState state = fillingStates[i];
+                if (!state.IsCaptured || state.Renderer == null)
+                {
+                    continue;
+                }
+
+                float yOffset = startY + (stepY * state.SlotIndex);
+                state.MoveInsideRoll(new Vector3(
+                    rollBounds.center.x,
+                    rollBounds.center.y + yOffset,
+                    rollObject.transform.position.z - 0.05f));
             }
         }
 
@@ -461,22 +484,22 @@ namespace KimbapGame.Kitchen
 
             public bool IsCaptured { get; private set; }
 
-            private Vector3 capturedOffset;
+            public int SlotIndex { get; private set; }
 
-            public void Capture(Vector3 rollPosition)
+            public void Capture(int slotIndex)
             {
                 IsCaptured = true;
-                capturedOffset = Transform.position - rollPosition;
+                SlotIndex = slotIndex;
             }
 
-            public void MoveWithRoll(Vector3 rollPosition)
+            public void MoveInsideRoll(Vector3 position)
             {
                 if (!IsCaptured || Transform == null)
                 {
                     return;
                 }
 
-                Transform.position = rollPosition + capturedOffset;
+                Transform.position = position;
             }
 
             public void HideRenderer()

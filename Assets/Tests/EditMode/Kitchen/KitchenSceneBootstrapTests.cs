@@ -1,4 +1,5 @@
 using KimbapGame.Kitchen;
+using KimbapGame.Order;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UI;
@@ -35,20 +36,26 @@ namespace KimbapGame.Tests.Kitchen
             GameObject completeTable = GameObject.Find("Complete Table");
             GameObject rollButton = GameObject.Find("RollButton");
             GameObject completeButton = FindChild(completeTable.transform, "CompleteButton");
+            GameObject submitButton = FindChild(completeTable.transform, "SubmitButton");
             GameObject nextButton = GameObject.Find("NextTableButton");
             GameObject kitchenCanvas = GameObject.Find("KitchenCanvas");
 
             Assert.IsNotNull(rollButton);
             Assert.IsNotNull(completeButton);
+            Assert.IsNotNull(submitButton);
             Assert.IsNotNull(nextButton);
             Assert.IsNotNull(kitchenCanvas);
             Assert.IsTrue(nextButton.transform.IsChildOf(kitchenCanvas.transform));
             Assert.IsTrue(rollButton.transform.IsChildOf(completeTable.transform));
             Assert.IsFalse(completeButton.transform.IsChildOf(kitchenCanvas.transform));
             Assert.IsTrue(completeButton.transform.IsChildOf(completeTable.transform));
+            Assert.IsTrue(submitButton.transform.IsChildOf(completeTable.transform));
             Assert.IsFalse(completeButton.activeSelf);
+            Assert.IsFalse(submitButton.activeSelf);
             Assert.IsNotNull(rollButton.GetComponent<Button>());
             Assert.IsNotNull(completeButton.GetComponent<Button>());
+            Assert.IsNotNull(submitButton.GetComponent<Button>());
+            Assert.IsNotNull(submitButton.GetComponent<KitchenReturnNavigator>());
         }
 
         private static GameObject FindChild(Transform root, string objectName)
