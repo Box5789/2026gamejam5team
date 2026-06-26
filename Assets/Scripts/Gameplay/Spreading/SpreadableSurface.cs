@@ -50,6 +50,8 @@ namespace GameJam.Gameplay.Spreading
 
         public bool IsComplete => spreadMask != null && spreadMask.IsComplete(requiredCoverage);
 
+        public Color SurfaceColor => surfaceColor;
+
         private void Awake()
         {
             InitializeSurface();
@@ -167,6 +169,24 @@ namespace GameJam.Gameplay.Spreading
             lastPaintWorldPoints = new Vector3[BrushCount];
             hasLastPaintWorldPoints = new bool[BrushCount];
             return SelectBrush(brushIndex);
+        }
+
+        public void SetSurfaceColor(Color color, bool resetPixels = true)
+        {
+            surfaceColor = color;
+
+            if (!resetPixels)
+            {
+                return;
+            }
+
+            if (spreadMask == null || spreadTexture == null)
+            {
+                return;
+            }
+
+            ResetPixelsToSurface();
+            ApplyTexture();
         }
 
         public int GetSelectedBrushIndex()

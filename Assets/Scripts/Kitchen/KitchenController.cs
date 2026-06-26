@@ -85,9 +85,8 @@ namespace KimbapGame.Kitchen
             preparedKimbap.Clear();
             playerKimbap.Clear();
             tableSequence.Clear();
+            DestroyCurrentRiceSurface();
             topSeaweedObject = null;
-            currentRiceSurface = null;
-            currentRiceInputController = null;
             droppedLayerIndex = 0;
             hasSavedCurrentKimbap = false;
             lastSavedPath = string.Empty;
@@ -163,8 +162,9 @@ namespace KimbapGame.Kitchen
 
             if (definition != null && definition.Category == KitchenIngredientCategory.Seaweed && droppedObject != null)
             {
+                DestroyCurrentRiceSurface();
                 topSeaweedObject = droppedObject;
-                BuildRiceSurfaceOnTopSeaweed(sortingOrder + 1);
+                BuildRiceSurfaceOnTopSeaweed(definition.PlaceholderColor, sortingOrder + 1);
             }
 
             return sortingOrder;
@@ -221,7 +221,7 @@ namespace KimbapGame.Kitchen
             return definition != null && maxCount > 0 && currentCount < maxCount;
         }
 
-        private void BuildRiceSurfaceOnTopSeaweed(int sortingOrder)
+        private void BuildRiceSurfaceOnTopSeaweed(Color surfaceColor, int sortingOrder)
         {
             if (topSeaweedObject == null)
             {
@@ -237,8 +237,21 @@ namespace KimbapGame.Kitchen
             renderer.sortingOrder = sortingOrder;
 
             currentRiceSurface = surfaceObject.AddComponent<SpreadableSurface>();
+            currentRiceSurface.SetSurfaceColor(surfaceColor);
             currentRiceInputController = surfaceObject.AddComponent<SpreadInputController>();
             currentRiceInputController.enabled = false;
+        }
+
+        private void DestroyCurrentRiceSurface()
+        {
+            GameObject surfaceObject = currentRiceSurface == null ? null : currentRiceSurface.gameObject;
+            currentRiceSurface = null;
+            currentRiceInputController = null;
+
+            if (surfaceObject != null)
+            {
+                DestroyUnityObject(surfaceObject);
+            }
         }
 
         private static void ApplySortingOrder(GameObject target, int sortingOrder)
@@ -252,6 +265,18 @@ namespace KimbapGame.Kitchen
             for (int i = 0; i < renderers.Length; i++)
             {
                 renderers[i].sortingOrder = sortingOrder + i;
+            }
+        }
+
+        private static void DestroyUnityObject(UnityEngine.Object target)
+        {
+            if (Application.isPlaying)
+            {
+                Destroy(target);
+            }
+            else
+            {
+                DestroyImmediate(target);
             }
         }
 

@@ -1,3 +1,4 @@
+using GameJam.Gameplay.Spreading;
 using KimbapGame.Data;
 using KimbapGame.Kitchen;
 using NUnit.Framework;
@@ -87,6 +88,56 @@ namespace KimbapGame.Tests.Kitchen
         }
 
         [Test]
+        public void RegisterDroppedObject_ForSecondSeaweedRemovesPreviousRiceSurface()
+        {
+            controller.ConfigureLimitsForTests(2, 2, 1);
+            GameObject firstSeaweedObject = new GameObject("FirstSeaweedObject");
+            GameObject secondSeaweedObject = new GameObject("SecondSeaweedObject");
+            Color firstColor = new Color(0.1f, 0.2f, 0.1f, 1f);
+            Color secondColor = new Color(0.25f, 0.35f, 0.2f, 1f);
+            KitchenIngredientDefinition firstSeaweed = CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed, firstColor);
+            KitchenIngredientDefinition secondSeaweed = CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed, secondColor);
+
+            try
+            {
+                controller.RegisterDroppedObject(firstSeaweed, firstSeaweedObject);
+                GameObject firstSurfaceObject = controller.CurrentRiceSurface.gameObject;
+
+                controller.RegisterDroppedObject(secondSeaweed, secondSeaweedObject);
+
+                Assert.IsTrue(firstSurfaceObject == null);
+                Assert.AreSame(secondSeaweedObject, controller.TopSeaweedObject);
+                Assert.AreSame(secondSeaweedObject.transform, controller.CurrentRiceSurface.transform.parent);
+                Assert.AreEqual(secondColor, controller.CurrentRiceSurface.SurfaceColor);
+            }
+            finally
+            {
+                Object.DestroyImmediate(firstSeaweedObject);
+                Object.DestroyImmediate(secondSeaweedObject);
+            }
+        }
+
+        [Test]
+        public void SpreadableSurface_SetSurfaceColorStoresRuntimeSurfaceColor()
+        {
+            GameObject surfaceObject = new GameObject("SpreadableSurfaceTest");
+            surfaceObject.AddComponent<SpriteRenderer>();
+            SpreadableSurface surface = surfaceObject.AddComponent<SpreadableSurface>();
+            Color targetColor = new Color(0.12f, 0.24f, 0.18f, 1f);
+
+            try
+            {
+                surface.SetSurfaceColor(targetColor);
+
+                Assert.AreEqual(targetColor, surface.SurfaceColor);
+            }
+            finally
+            {
+                Object.DestroyImmediate(surfaceObject);
+            }
+        }
+
+        [Test]
         public void TryAddFilling_RespectsConfiguredLimit()
         {
             KitchenIngredientDefinition filling = CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham);
@@ -98,12 +149,17 @@ namespace KimbapGame.Tests.Kitchen
 
         private static KitchenIngredientDefinition CreateDefinition(KitchenIngredientCategory category, IngredientType ingredientType)
         {
+            return CreateDefinition(category, ingredientType, Color.white);
+        }
+
+        private static KitchenIngredientDefinition CreateDefinition(KitchenIngredientCategory category, IngredientType ingredientType, Color color)
+        {
             return new KitchenIngredientDefinition(
                 ingredientType.ToString().ToLowerInvariant(),
                 ingredientType.ToString(),
                 ingredientType,
                 category,
-                Color.white);
+                color);
         }
     }
 }

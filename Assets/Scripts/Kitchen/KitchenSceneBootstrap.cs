@@ -32,7 +32,7 @@ namespace KimbapGame.Kitchen
             BuildTable(movingTablesRoot, 0, "Seaweed Table", BuildSeaweedDefinitions(), controller, dropZone, camera);
             BuildTable(movingTablesRoot, 1, "Rice Table", BuildRiceDefinitions(), controller, dropZone, camera);
             BuildTable(movingTablesRoot, 2, "Filling Table", BuildFillingDefinitions(), controller, dropZone, camera);
-            BuildCompleteTable(movingTablesRoot, 3);
+            BuildCompleteTable(movingTablesRoot, 3, controller, camera);
 
             KitchenRicePaintBridge riceBridge = new GameObject("KitchenRicePaintBridge").AddComponent<KitchenRicePaintBridge>();
             riceBridge.Configure(null, null, camera);
@@ -44,13 +44,6 @@ namespace KimbapGame.Kitchen
                 new Vector2(1f, 0.5f),
                 new Vector2(-72f, 0f),
                 new Vector2(84f, 84f));
-            Button completeButton = BuildButton(
-                "CompleteButton",
-                "Complete",
-                new Vector2(0.5f, 0f),
-                new Vector2(0f, 56f),
-                new Vector2(160f, 56f));
-            completeButton.onClick.AddListener(() => controller.CompleteAndSave());
 
             KitchenTableNavigator navigator = new GameObject("KitchenTableNavigator").AddComponent<KitchenTableNavigator>();
             navigator.Configure(movingTablesRoot, nextButton, TableSpacing, 4);
@@ -147,7 +140,7 @@ namespace KimbapGame.Kitchen
             }
         }
 
-        private static void BuildCompleteTable(Transform movingTablesRoot, int index)
+        private static void BuildCompleteTable(Transform movingTablesRoot, int index, KitchenController controller, Camera camera)
         {
             Transform tableRoot = new GameObject("Complete Table").transform;
             tableRoot.SetParent(movingTablesRoot, false);
@@ -162,6 +155,58 @@ namespace KimbapGame.Kitchen
                 -5);
             KitchenPlaceholderFactory.CreateLabel("Complete Table", tableRoot, new Vector3(0f, 2.75f, -0.1f), 52, 0.09f);
             KitchenPlaceholderFactory.CreateLabel("Completed / Saved XLSX", tableRoot, new Vector3(0f, 1.25f, -0.1f), 44, 0.075f);
+            BuildCompleteTableButton(tableRoot, controller, camera);
+        }
+
+        private static void BuildCompleteTableButton(Transform parent, KitchenController controller, Camera camera)
+        {
+            GameObject canvasObject = new GameObject("CompleteTableCanvas");
+            canvasObject.transform.SetParent(parent, false);
+            canvasObject.transform.localPosition = new Vector3(0f, -1.35f, -0.2f);
+
+            Canvas canvas = canvasObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.worldCamera = camera;
+            canvas.sortingOrder = 60;
+            canvasObject.AddComponent<GraphicRaycaster>();
+
+            RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(220f, 80f);
+            canvasRect.localScale = new Vector3(0.01f, 0.01f, 0.01f);
+
+            GameObject buttonObject = new GameObject("CompleteButton");
+            buttonObject.transform.SetParent(canvasObject.transform, false);
+            RectTransform buttonRect = buttonObject.AddComponent<RectTransform>();
+            buttonRect.anchorMin = new Vector2(0.5f, 0.5f);
+            buttonRect.anchorMax = new Vector2(0.5f, 0.5f);
+            buttonRect.pivot = new Vector2(0.5f, 0.5f);
+            buttonRect.anchoredPosition = Vector2.zero;
+            buttonRect.sizeDelta = new Vector2(180f, 56f);
+
+            Image image = buttonObject.AddComponent<Image>();
+            image.color = new Color(0.15f, 0.7f, 0.68f, 1f);
+
+            Button button = buttonObject.AddComponent<Button>();
+            button.onClick.AddListener(() => controller.CompleteAndSave());
+
+            GameObject textObject = new GameObject("Text");
+            textObject.transform.SetParent(buttonObject.transform, false);
+            RectTransform textRect = textObject.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            Text label = textObject.AddComponent<Text>();
+            label.text = "Complete";
+            label.alignment = TextAnchor.MiddleCenter;
+            label.color = Color.white;
+            label.fontSize = 28;
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (label.font == null)
+            {
+                label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            }
         }
 
         private static void CreateIngredientSource(
