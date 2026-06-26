@@ -148,6 +148,45 @@ namespace KimbapGame.Tests.Kitchen
         }
 
         [Test]
+        public void RegisterDroppedObject_ForFillingTracksDroppedFillingObject()
+        {
+            GameObject fillingObject = new GameObject("FillingObject");
+            KitchenIngredientDefinition filling = CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham);
+
+            try
+            {
+                controller.RegisterDroppedObject(filling, fillingObject);
+
+                Assert.AreEqual(1, controller.DroppedFillingObjects.Count);
+                Assert.AreSame(fillingObject, controller.DroppedFillingObjects[0]);
+            }
+            finally
+            {
+                Object.DestroyImmediate(fillingObject);
+            }
+        }
+
+        [Test]
+        public void ResetPreparation_ClearsDroppedFillingObjects()
+        {
+            GameObject fillingObject = new GameObject("FillingObject");
+            KitchenIngredientDefinition filling = CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham);
+
+            try
+            {
+                controller.RegisterDroppedObject(filling, fillingObject);
+
+                controller.ResetPreparation();
+
+                Assert.AreEqual(0, controller.DroppedFillingObjects.Count);
+            }
+            finally
+            {
+                Object.DestroyImmediate(fillingObject);
+            }
+        }
+
+        [Test]
         public void RicePaintBridge_DisablingPaintingClearsSelectedRice()
         {
             GameObject bridgeObject = new GameObject("KitchenRicePaintBridge");

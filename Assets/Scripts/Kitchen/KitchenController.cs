@@ -24,6 +24,7 @@ namespace KimbapGame.Kitchen
         private CurrentOrder currentOrder;
         private string sessionId;
         private readonly List<string> tableSequence = new List<string>();
+        private readonly List<GameObject> droppedFillingObjects = new List<GameObject>();
         private GameObject topSeaweedObject;
         private SpreadableSurface currentRiceSurface;
         private SpreadInputController currentRiceInputController;
@@ -46,6 +47,8 @@ namespace KimbapGame.Kitchen
         public SpreadableSurface CurrentRiceSurface => currentRiceSurface;
 
         public SpreadInputController CurrentRiceInputController => currentRiceInputController;
+
+        public IReadOnlyList<GameObject> DroppedFillingObjects => droppedFillingObjects;
 
         public void ConfigureSceneReferences(KitchenDropZone dropZone, KitchenRicePaintBridge ricePaintBridge)
         {
@@ -85,6 +88,7 @@ namespace KimbapGame.Kitchen
             preparedKimbap.Clear();
             playerKimbap.Clear();
             tableSequence.Clear();
+            droppedFillingObjects.Clear();
             DestroyCurrentRiceSurface();
             topSeaweedObject = null;
             droppedLayerIndex = 0;
@@ -165,6 +169,10 @@ namespace KimbapGame.Kitchen
                 DestroyCurrentRiceSurface();
                 topSeaweedObject = droppedObject;
                 BuildRiceSurfaceOnTopSeaweed(definition.PlaceholderColor, sortingOrder + 1);
+            }
+            else if (definition != null && definition.Category == KitchenIngredientCategory.Filling && droppedObject != null)
+            {
+                droppedFillingObjects.Add(droppedObject);
             }
 
             return sortingOrder;
