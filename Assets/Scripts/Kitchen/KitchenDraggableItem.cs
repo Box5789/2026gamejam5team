@@ -5,6 +5,8 @@ namespace KimbapGame.Kitchen
     [DisallowMultipleComponent]
     public sealed class KitchenDraggableItem : MonoBehaviour
     {
+        private const int DroppedSortingOrder = 20;
+
         private KitchenController controller;
         private KitchenDropZone dropZone;
         private KitchenIngredientDefinition definition;
@@ -67,10 +69,21 @@ namespace KimbapGame.Kitchen
 
             transform.SetParent(dropZone.PlacedItemRoot, true);
             transform.position = dropZone.GetSnappedWorldPoint(transform.position);
+            ApplyDroppedSortingOrder();
+
             Collider2D itemCollider = GetComponent<Collider2D>();
             if (itemCollider != null)
             {
                 itemCollider.enabled = false;
+            }
+        }
+
+        private void ApplyDroppedSortingOrder()
+        {
+            SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                renderers[i].sortingOrder = DroppedSortingOrder + i;
             }
         }
     }

@@ -30,15 +30,25 @@ namespace KimbapGame.Kitchen
             KitchenDropZone dropZone = BuildFixedKimbapMat();
             Transform movingTablesRoot = new GameObject("MovingTablesRoot").transform;
 
-            BuildTable(movingTablesRoot, 0, "김 테이블", BuildSeaweedDefinitions(), controller, dropZone, camera);
-            BuildTable(movingTablesRoot, 1, "밥 테이블", BuildRiceDefinitions(), controller, dropZone, camera);
-            BuildTable(movingTablesRoot, 2, "속 테이블", BuildFillingDefinitions(), controller, dropZone, camera);
+            BuildTable(movingTablesRoot, 0, "Seaweed Table", BuildSeaweedDefinitions(), controller, dropZone, camera);
+            BuildTable(movingTablesRoot, 1, "Rice Table", BuildRiceDefinitions(), controller, dropZone, camera);
+            BuildTable(movingTablesRoot, 2, "Filling Table", BuildFillingDefinitions(), controller, dropZone, camera);
 
             KitchenRicePaintBridge riceBridge = BuildRiceSurface(camera);
             controller.ConfigureSceneReferences(dropZone, riceBridge);
 
-            Button nextButton = BuildButton("NextTableButton", ">", new Vector2(520f, 0f), new Vector2(84f, 84f));
-            Button completeButton = BuildButton("CompleteButton", "완성", new Vector2(0f, -300f), new Vector2(160f, 56f));
+            Button nextButton = BuildButton(
+                "NextTableButton",
+                ">",
+                new Vector2(1f, 0.5f),
+                new Vector2(-72f, 0f),
+                new Vector2(84f, 84f));
+            Button completeButton = BuildButton(
+                "CompleteButton",
+                "Complete",
+                new Vector2(0.5f, 0f),
+                new Vector2(0f, 56f),
+                new Vector2(160f, 56f));
             completeButton.onClick.AddListener(() => controller.CompleteAndSave());
 
             KitchenTableNavigator navigator = new GameObject("KitchenTableNavigator").AddComponent<KitchenTableNavigator>();
@@ -77,9 +87,22 @@ namespace KimbapGame.Kitchen
         private static KitchenDropZone BuildFixedKimbapMat()
         {
             Transform fixedRoot = new GameObject("FixedKimbapMatRoot").transform;
-            KitchenPlaceholderFactory.CreateSpriteObject("BambooMat", fixedRoot, new Vector3(0f, -0.75f, 0f), new Vector2(5.4f, 2.4f), new Color(0.76f, 0.67f, 0.46f, 1f), 1);
-            KitchenPlaceholderFactory.CreateSpriteObject("DropGuide", fixedRoot, new Vector3(0f, -0.75f, -0.02f), new Vector2(4.8f, 1.8f), new Color(0.95f, 0.88f, 0.68f, 0.9f), 2);
-            KitchenPlaceholderFactory.CreateLabel("김발 / 제작 영역", fixedRoot, new Vector3(0f, -2.25f, -0.1f));
+            KitchenPlaceholderFactory.CreateSpriteObject(
+                "BambooMat",
+                fixedRoot,
+                new Vector3(0f, -0.75f, 0f),
+                new Vector2(5.4f, 2.4f),
+                new Color(0.76f, 0.67f, 0.46f, 1f),
+                1);
+            KitchenPlaceholderFactory.CreateSpriteObject(
+                "DropGuide",
+                fixedRoot,
+                new Vector3(0f, -0.75f, -0.02f),
+                new Vector2(4.8f, 1.8f),
+                new Color(0.95f, 0.88f, 0.68f, 0.9f),
+                2);
+            KitchenPlaceholderFactory.CreateLabel("Kimbap Mat / Drop Area", fixedRoot, new Vector3(0f, -2.25f, -0.1f));
+
             GameObject dropObject = new GameObject("KitchenDropZone");
             dropObject.transform.SetParent(fixedRoot, false);
             dropObject.transform.localPosition = new Vector3(0f, -0.75f, -0.2f);
@@ -91,10 +114,13 @@ namespace KimbapGame.Kitchen
             GameObject surfaceObject = new GameObject("RiceSpreadSurface");
             surfaceObject.transform.position = new Vector3(0f, -0.75f, -0.3f);
             surfaceObject.transform.localScale = new Vector3(4.6f, 1.7f, 1f);
-            surfaceObject.AddComponent<SpriteRenderer>();
+            SpriteRenderer renderer = surfaceObject.AddComponent<SpriteRenderer>();
+            renderer.sortingOrder = 10;
+
             SpreadableSurface surface = surfaceObject.AddComponent<SpreadableSurface>();
             SpreadInputController inputController = surfaceObject.AddComponent<SpreadInputController>();
             inputController.enabled = false;
+
             KitchenRicePaintBridge bridge = surfaceObject.AddComponent<KitchenRicePaintBridge>();
             bridge.Configure(surface, inputController, camera);
             return bridge;
@@ -113,7 +139,13 @@ namespace KimbapGame.Kitchen
             tableRoot.SetParent(movingTablesRoot, false);
             tableRoot.localPosition = new Vector3(TableSpacing * index, 0f, 1f);
 
-            KitchenPlaceholderFactory.CreateSpriteObject($"{title}_Background", tableRoot, new Vector3(0f, 0f, 0.3f), new Vector2(7.6f, 6.6f), new Color(0.96f, 0.95f, 0.91f, 1f), -5);
+            KitchenPlaceholderFactory.CreateSpriteObject(
+                $"{title}_Background",
+                tableRoot,
+                new Vector3(0f, 0f, 0.3f),
+                new Vector2(7.6f, 6.6f),
+                new Color(0.96f, 0.95f, 0.91f, 1f),
+                -5);
             KitchenPlaceholderFactory.CreateLabel(title, tableRoot, new Vector3(0f, 2.75f, -0.1f), 52, 0.09f);
 
             float startX = -2.8f;
@@ -148,7 +180,7 @@ namespace KimbapGame.Kitchen
             ingredientSource.Configure(definition, controller, dropZone, camera, dragSize);
         }
 
-        private static Button BuildButton(string name, string text, Vector2 anchoredPosition, Vector2 size)
+        private static Button BuildButton(string name, string text, Vector2 anchor, Vector2 anchoredPosition, Vector2 size)
         {
             Canvas canvas = FindObjectOfType<Canvas>();
             if (canvas == null)
@@ -156,13 +188,22 @@ namespace KimbapGame.Kitchen
                 GameObject canvasObject = new GameObject("KitchenCanvas");
                 canvas = canvasObject.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvasObject.AddComponent<CanvasScaler>();
+
+                CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1280f, 720f);
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                scaler.matchWidthOrHeight = 0.5f;
+
                 canvasObject.AddComponent<GraphicRaycaster>();
             }
 
             GameObject buttonObject = new GameObject(name);
             buttonObject.transform.SetParent(canvas.transform, false);
             RectTransform rectTransform = buttonObject.AddComponent<RectTransform>();
+            rectTransform.anchorMin = anchor;
+            rectTransform.anchorMax = anchor;
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
             rectTransform.anchoredPosition = anchoredPosition;
             rectTransform.sizeDelta = size;
 
@@ -188,6 +229,7 @@ namespace KimbapGame.Kitchen
             {
                 label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
             }
+
             return button;
         }
 
@@ -195,11 +237,11 @@ namespace KimbapGame.Kitchen
         {
             return new[]
             {
-                new KitchenIngredientDefinition("plain-seaweed", "기본김", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.08f, 0.16f, 0.11f, 1f)),
-                new KitchenIngredientDefinition("roasted-seaweed", "구운김", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.12f, 0.2f, 0.13f, 1f)),
-                new KitchenIngredientDefinition("salted-seaweed", "소금김", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.18f, 0.24f, 0.16f, 1f)),
-                new KitchenIngredientDefinition("sesame-seaweed", "깨김", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.1f, 0.18f, 0.1f, 1f)),
-                new KitchenIngredientDefinition("double-seaweed", "두꺼운김", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.05f, 0.11f, 0.08f, 1f))
+                new KitchenIngredientDefinition("plain-seaweed", "Plain Seaweed", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.08f, 0.16f, 0.11f, 1f)),
+                new KitchenIngredientDefinition("roasted-seaweed", "Roasted Seaweed", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.12f, 0.2f, 0.13f, 1f)),
+                new KitchenIngredientDefinition("salted-seaweed", "Salted Seaweed", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.18f, 0.24f, 0.16f, 1f)),
+                new KitchenIngredientDefinition("sesame-seaweed", "Sesame Seaweed", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.1f, 0.18f, 0.1f, 1f)),
+                new KitchenIngredientDefinition("thick-seaweed", "Thick Seaweed", IngredientType.Seaweed, KitchenIngredientCategory.Seaweed, new Color(0.05f, 0.11f, 0.08f, 1f))
             };
         }
 
@@ -207,11 +249,11 @@ namespace KimbapGame.Kitchen
         {
             return new[]
             {
-                new KitchenIngredientDefinition("white-rice", "흰밥", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(1f, 0.97f, 0.86f, 1f), "white-rice"),
-                new KitchenIngredientDefinition("seasoned-rice", "양념밥", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.98f, 0.86f, 0.62f, 1f), "seasoned-rice"),
-                new KitchenIngredientDefinition("brown-rice", "현미밥", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.75f, 0.58f, 0.38f, 1f), "seasoned-rice"),
-                new KitchenIngredientDefinition("black-rice", "흑미밥", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.35f, 0.29f, 0.36f, 1f), "seasoned-rice"),
-                new KitchenIngredientDefinition("spicy-rice", "매운밥", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.95f, 0.5f, 0.35f, 1f), "seasoned-rice")
+                new KitchenIngredientDefinition("white-rice", "White Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(1f, 0.97f, 0.86f, 1f), "white-rice"),
+                new KitchenIngredientDefinition("seasoned-rice", "Seasoned Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.98f, 0.86f, 0.62f, 1f), "seasoned-rice"),
+                new KitchenIngredientDefinition("brown-rice", "Brown Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.75f, 0.58f, 0.38f, 1f), "seasoned-rice"),
+                new KitchenIngredientDefinition("black-rice", "Black Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.35f, 0.29f, 0.36f, 1f), "seasoned-rice"),
+                new KitchenIngredientDefinition("spicy-rice", "Spicy Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.95f, 0.5f, 0.35f, 1f), "seasoned-rice")
             };
         }
 
@@ -219,13 +261,12 @@ namespace KimbapGame.Kitchen
         {
             return new[]
             {
-                new KitchenIngredientDefinition("ham", "햄", IngredientType.Ham, KitchenIngredientCategory.Filling, new Color(0.95f, 0.44f, 0.42f, 1f)),
-                new KitchenIngredientDefinition("egg", "계란", IngredientType.Egg, KitchenIngredientCategory.Filling, new Color(1f, 0.88f, 0.28f, 1f)),
-                new KitchenIngredientDefinition("carrot", "당근", IngredientType.Carrot, KitchenIngredientCategory.Filling, new Color(1f, 0.45f, 0.12f, 1f)),
-                new KitchenIngredientDefinition("spinach", "시금치", IngredientType.Spinach, KitchenIngredientCategory.Filling, new Color(0.22f, 0.65f, 0.24f, 1f)),
-                new KitchenIngredientDefinition("pickled-radish", "단무지", IngredientType.PickledRadish, KitchenIngredientCategory.Filling, new Color(1f, 0.82f, 0.18f, 1f))
+                new KitchenIngredientDefinition("ham", "Ham", IngredientType.Ham, KitchenIngredientCategory.Filling, new Color(0.95f, 0.44f, 0.42f, 1f)),
+                new KitchenIngredientDefinition("egg", "Egg", IngredientType.Egg, KitchenIngredientCategory.Filling, new Color(1f, 0.88f, 0.28f, 1f)),
+                new KitchenIngredientDefinition("carrot", "Carrot", IngredientType.Carrot, KitchenIngredientCategory.Filling, new Color(1f, 0.45f, 0.12f, 1f)),
+                new KitchenIngredientDefinition("spinach", "Spinach", IngredientType.Spinach, KitchenIngredientCategory.Filling, new Color(0.22f, 0.65f, 0.24f, 1f)),
+                new KitchenIngredientDefinition("pickled-radish", "Pickled Radish", IngredientType.PickledRadish, KitchenIngredientCategory.Filling, new Color(1f, 0.82f, 0.18f, 1f))
             };
         }
-
     }
 }

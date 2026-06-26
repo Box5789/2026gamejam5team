@@ -7,6 +7,7 @@ namespace KimbapGame.Kitchen
     {
         [SerializeField] private Vector2 size = new Vector2(4.8f, 2.4f);
         [SerializeField] private Transform placedItemRoot;
+        [SerializeField] private float placedItemLocalZ = -1.5f;
 
         public Transform PlacedItemRoot => placedItemRoot == null ? transform : placedItemRoot;
 
@@ -27,7 +28,7 @@ namespace KimbapGame.Kitchen
             Vector3 localPoint = transform.InverseTransformPoint(worldPoint);
             localPoint.x = Mathf.Clamp(localPoint.x, -size.x * 0.5f, size.x * 0.5f);
             localPoint.y = Mathf.Clamp(localPoint.y, -size.y * 0.5f, size.y * 0.5f);
-            localPoint.z = -0.1f;
+            localPoint.z = placedItemLocalZ;
             return transform.TransformPoint(localPoint);
         }
     }
