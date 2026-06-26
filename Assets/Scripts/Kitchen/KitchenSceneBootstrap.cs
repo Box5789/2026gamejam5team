@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using GameJam.Gameplay.Spreading;
 using KimbapGame.Data;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -33,8 +32,10 @@ namespace KimbapGame.Kitchen
             BuildTable(movingTablesRoot, 0, "Seaweed Table", BuildSeaweedDefinitions(), controller, dropZone, camera);
             BuildTable(movingTablesRoot, 1, "Rice Table", BuildRiceDefinitions(), controller, dropZone, camera);
             BuildTable(movingTablesRoot, 2, "Filling Table", BuildFillingDefinitions(), controller, dropZone, camera);
+            BuildCompleteTable(movingTablesRoot, 3);
 
-            KitchenRicePaintBridge riceBridge = BuildRiceSurface(camera);
+            KitchenRicePaintBridge riceBridge = new GameObject("KitchenRicePaintBridge").AddComponent<KitchenRicePaintBridge>();
+            riceBridge.Configure(null, null, camera);
             controller.ConfigureSceneReferences(dropZone, riceBridge);
 
             Button nextButton = BuildButton(
@@ -52,7 +53,14 @@ namespace KimbapGame.Kitchen
             completeButton.onClick.AddListener(() => controller.CompleteAndSave());
 
             KitchenTableNavigator navigator = new GameObject("KitchenTableNavigator").AddComponent<KitchenTableNavigator>();
-            navigator.Configure(movingTablesRoot, nextButton, TableSpacing, 3);
+            navigator.Configure(movingTablesRoot, nextButton, TableSpacing, 4);
+            navigator.TableChanged += index =>
+            {
+                if (index == 3)
+                {
+                    controller.CompleteAndSave();
+                }
+            };
         }
 
         private static Camera EnsureCamera()
@@ -109,23 +117,6 @@ namespace KimbapGame.Kitchen
             return dropObject.AddComponent<KitchenDropZone>();
         }
 
-        private static KitchenRicePaintBridge BuildRiceSurface(Camera camera)
-        {
-            GameObject surfaceObject = new GameObject("RiceSpreadSurface");
-            surfaceObject.transform.position = new Vector3(0f, -0.75f, -0.3f);
-            surfaceObject.transform.localScale = new Vector3(4.6f, 1.7f, 1f);
-            SpriteRenderer renderer = surfaceObject.AddComponent<SpriteRenderer>();
-            renderer.sortingOrder = 10;
-
-            SpreadableSurface surface = surfaceObject.AddComponent<SpreadableSurface>();
-            SpreadInputController inputController = surfaceObject.AddComponent<SpreadInputController>();
-            inputController.enabled = false;
-
-            KitchenRicePaintBridge bridge = surfaceObject.AddComponent<KitchenRicePaintBridge>();
-            bridge.Configure(surface, inputController, camera);
-            return bridge;
-        }
-
         private static void BuildTable(
             Transform movingTablesRoot,
             int index,
@@ -154,6 +145,23 @@ namespace KimbapGame.Kitchen
                 Vector3 position = new Vector3(startX + (i * 1.4f), 1.85f, -0.2f);
                 CreateIngredientSource(tableRoot, definitions[i], position, controller, dropZone, camera);
             }
+        }
+
+        private static void BuildCompleteTable(Transform movingTablesRoot, int index)
+        {
+            Transform tableRoot = new GameObject("Complete Table").transform;
+            tableRoot.SetParent(movingTablesRoot, false);
+            tableRoot.localPosition = new Vector3(TableSpacing * index, 0f, 1f);
+
+            KitchenPlaceholderFactory.CreateSpriteObject(
+                "Complete Table_Background",
+                tableRoot,
+                new Vector3(0f, 0f, 0.3f),
+                new Vector2(7.6f, 6.6f),
+                new Color(0.94f, 0.96f, 0.93f, 1f),
+                -5);
+            KitchenPlaceholderFactory.CreateLabel("Complete Table", tableRoot, new Vector3(0f, 2.75f, -0.1f), 52, 0.09f);
+            KitchenPlaceholderFactory.CreateLabel("Completed / Saved XLSX", tableRoot, new Vector3(0f, 1.25f, -0.1f), 44, 0.075f);
         }
 
         private static void CreateIngredientSource(
@@ -251,9 +259,9 @@ namespace KimbapGame.Kitchen
             {
                 new KitchenIngredientDefinition("white-rice", "White Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(1f, 0.97f, 0.86f, 1f), "white-rice"),
                 new KitchenIngredientDefinition("seasoned-rice", "Seasoned Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.98f, 0.86f, 0.62f, 1f), "seasoned-rice"),
-                new KitchenIngredientDefinition("brown-rice", "Brown Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.75f, 0.58f, 0.38f, 1f), "seasoned-rice"),
-                new KitchenIngredientDefinition("black-rice", "Black Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.35f, 0.29f, 0.36f, 1f), "seasoned-rice"),
-                new KitchenIngredientDefinition("spicy-rice", "Spicy Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.95f, 0.5f, 0.35f, 1f), "seasoned-rice")
+                new KitchenIngredientDefinition("brown-rice", "Brown Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.75f, 0.58f, 0.38f, 1f), "brown-rice"),
+                new KitchenIngredientDefinition("black-rice", "Black Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.35f, 0.29f, 0.36f, 1f), "black-rice"),
+                new KitchenIngredientDefinition("spicy-rice", "Spicy Rice", IngredientType.Rice, KitchenIngredientCategory.Rice, new Color(0.95f, 0.5f, 0.35f, 1f), "spicy-rice")
             };
         }
 

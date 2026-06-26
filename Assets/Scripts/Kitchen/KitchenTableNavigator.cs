@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,6 +19,8 @@ namespace KimbapGame.Kitchen
         private Vector3 slideTargetPosition;
         private float slideTimer;
         private bool isSliding;
+
+        public event Action<int> TableChanged;
 
         public int CurrentTableIndex => currentTableIndex;
 
@@ -84,6 +87,7 @@ namespace KimbapGame.Kitchen
 
             currentTableIndex = clampedIndex;
             BeginSlide();
+            TableChanged?.Invoke(currentTableIndex);
         }
 
         public static int ClampTableIndex(int tableIndex, int tableCount)

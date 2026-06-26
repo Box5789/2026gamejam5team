@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using GameJam.Gameplay.Spreading;
 using KimbapGame.Data;
 using UnityEngine;
 
@@ -15,12 +16,20 @@ namespace KimbapGame.Kitchen
         [SerializeField] private KitchenDropZone dropZone;
         [SerializeField] private KitchenRicePaintBridge ricePaintBridge;
         [SerializeField] private string resultFileName = "KimbapResults.xlsx";
+        [SerializeField] private int droppedSortingBase = 30;
+        [SerializeField] private float riceSurfaceLocalZ = -0.05f;
 
         private readonly PreparedKimbapData preparedKimbap = new PreparedKimbapData();
         private readonly PlayerKimbap playerKimbap = new PlayerKimbap();
         private CurrentOrder currentOrder;
         private string sessionId;
         private readonly List<string> tableSequence = new List<string>();
+        private GameObject topSeaweedObject;
+        private SpreadableSurface currentRiceSurface;
+        private SpreadInputController currentRiceInputController;
+        private int droppedLayerIndex;
+        private bool hasSavedCurrentKimbap;
+        private string lastSavedPath;
 
         public PreparedKimbapData PreparedKimbap => preparedKimbap;
 
@@ -31,6 +40,12 @@ namespace KimbapGame.Kitchen
         public int MaxRiceLayers => maxRiceLayers;
 
         public int MaxFillingItems => maxFillingItems;
+
+        public GameObject TopSeaweedObject => topSeaweedObject;
+
+        public SpreadableSurface CurrentRiceSurface => currentRiceSurface;
+
+        public SpreadInputController CurrentRiceInputController => currentRiceInputController;
 
         public void ConfigureSceneReferences(KitchenDropZone dropZone, KitchenRicePaintBridge ricePaintBridge)
         {
@@ -70,6 +85,12 @@ namespace KimbapGame.Kitchen
             preparedKimbap.Clear();
             playerKimbap.Clear();
             tableSequence.Clear();
+            topSeaweedObject = null;
+            currentRiceSurface = null;
+            currentRiceInputController = null;
+            droppedLayerIndex = 0;
+            hasSavedCurrentKimbap = false;
+            lastSavedPath = string.Empty;
         }
 
         public bool TryAddIngredient(KitchenIngredientDefinition definition)
@@ -106,6 +127,11 @@ namespace KimbapGame.Kitchen
 
         public bool TryAddRice(KitchenIngredientDefinition definition)
         {
+            if (currentRiceSurface == null || currentRiceInputController == null)
+            {
+                return false;
+            }
+
             if (!CanAdd(preparedKimbap.riceItems.Count, maxRiceLayers, definition))
             {
                 return false;
@@ -128,6 +154,22 @@ namespace KimbapGame.Kitchen
             return true;
         }
 
+        public int RegisterDroppedObject(KitchenIngredientDefinition definition, GameObject droppedObject)
+        {
+            int sortingOrder = droppedSortingBase + (droppedLayerIndex * 3);
+            droppedLayerIndex++;
+
+            ApplySortingOrder(droppedObject, sortingOrder);
+
+            if (definition != null && definition.Category == KitchenIngredientCategory.Seaweed && droppedObject != null)
+            {
+                topSeaweedObject = droppedObject;
+                BuildRiceSurfaceOnTopSeaweed(sortingOrder + 1);
+            }
+
+            return sortingOrder;
+        }
+
         public void SelectRice(KitchenIngredientDefinition definition)
         {
             if (definition == null || ricePaintBridge == null)
@@ -140,8 +182,15 @@ namespace KimbapGame.Kitchen
 
         public string CompleteAndSave()
         {
+            if (hasSavedCurrentKimbap && !string.IsNullOrEmpty(lastSavedPath))
+            {
+                return lastSavedPath;
+            }
+
             string path = Path.Combine(Application.persistentDataPath, resultFileName);
             SavePreparedKimbap(path);
+            hasSavedCurrentKimbap = true;
+            lastSavedPath = path;
             Debug.Log($"Saved prepared kimbap data to {path}");
             return path;
         }
@@ -170,6 +219,40 @@ namespace KimbapGame.Kitchen
         private static bool CanAdd(int currentCount, int maxCount, KitchenIngredientDefinition definition)
         {
             return definition != null && maxCount > 0 && currentCount < maxCount;
+        }
+
+        private void BuildRiceSurfaceOnTopSeaweed(int sortingOrder)
+        {
+            if (topSeaweedObject == null)
+            {
+                return;
+            }
+
+            GameObject surfaceObject = new GameObject("TopSeaweedRiceSurface");
+            surfaceObject.transform.SetParent(topSeaweedObject.transform, false);
+            surfaceObject.transform.localPosition = new Vector3(0f, 0f, riceSurfaceLocalZ);
+            surfaceObject.transform.localScale = new Vector3(0.92f, 0.78f, 1f);
+
+            SpriteRenderer renderer = surfaceObject.AddComponent<SpriteRenderer>();
+            renderer.sortingOrder = sortingOrder;
+
+            currentRiceSurface = surfaceObject.AddComponent<SpreadableSurface>();
+            currentRiceInputController = surfaceObject.AddComponent<SpreadInputController>();
+            currentRiceInputController.enabled = false;
+        }
+
+        private static void ApplySortingOrder(GameObject target, int sortingOrder)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            SpriteRenderer[] renderers = target.GetComponentsInChildren<SpriteRenderer>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                renderers[i].sortingOrder = sortingOrder + i;
+            }
         }
 
         public string GetDebugSummary()

@@ -5,7 +5,7 @@ namespace KimbapGame.Kitchen
     [DisallowMultipleComponent]
     public sealed class KitchenDraggableItem : MonoBehaviour
     {
-        private const int DroppedSortingOrder = 20;
+        private const int DraggingSortingOrder = 100;
 
         private KitchenController controller;
         private KitchenDropZone dropZone;
@@ -24,6 +24,7 @@ namespace KimbapGame.Kitchen
             this.definition = definition;
             this.targetCamera = targetCamera;
             isDragging = true;
+            ApplySortingOrder(DraggingSortingOrder);
         }
 
         private void Update()
@@ -43,6 +44,7 @@ namespace KimbapGame.Kitchen
                 Vector3 worldPoint = targetCamera.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Mathf.Abs(targetCamera.transform.position.z)));
                 worldPoint.z = -1f;
                 transform.position = worldPoint;
+                ApplySortingOrder(DraggingSortingOrder);
             }
 
             if (Input.GetMouseButtonUp(0))
@@ -69,7 +71,8 @@ namespace KimbapGame.Kitchen
 
             transform.SetParent(dropZone.PlacedItemRoot, true);
             transform.position = dropZone.GetSnappedWorldPoint(transform.position);
-            ApplyDroppedSortingOrder();
+            int droppedSortingOrder = controller.RegisterDroppedObject(definition, gameObject);
+            ApplySortingOrder(droppedSortingOrder);
 
             Collider2D itemCollider = GetComponent<Collider2D>();
             if (itemCollider != null)
@@ -78,12 +81,12 @@ namespace KimbapGame.Kitchen
             }
         }
 
-        private void ApplyDroppedSortingOrder()
+        private void ApplySortingOrder(int sortingOrder)
         {
             SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>();
             for (int i = 0; i < renderers.Length; i++)
             {
-                renderers[i].sortingOrder = DroppedSortingOrder + i;
+                renderers[i].sortingOrder = sortingOrder + i;
             }
         }
     }

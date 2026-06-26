@@ -11,6 +11,9 @@ namespace KimbapGame.Tests.Kitchen
         [TestCase(2, 3, 2)]
         [TestCase(3, 3, 2)]
         [TestCase(99, 3, 2)]
+        [TestCase(3, 4, 3)]
+        [TestCase(4, 4, 3)]
+        [TestCase(99, 4, 3)]
         [TestCase(2, 0, 0)]
         public void ClampTableIndex_StaysInsideTableRange(int input, int tableCount, int expected)
         {

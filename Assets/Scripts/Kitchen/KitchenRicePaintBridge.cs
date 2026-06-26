@@ -56,26 +56,47 @@ namespace KimbapGame.Kitchen
             controller = sourceController;
             hasRecordedSelectedRice = false;
 
-            if (surface != null && selectedRice != null)
+            SpreadableSurface activeSurface = GetActiveSurface();
+            if (activeSurface != null && selectedRice != null)
             {
-                surface.SelectBrush(selectedRice.RiceBrushId);
+                activeSurface.SelectOrCreateBrush(selectedRice.RiceBrushId, selectedRice.DisplayName, selectedRice.PlaceholderColor);
             }
         }
 
         private void Update()
         {
-            if (selectedRice == null || inputController == null || !Input.GetMouseButton(0))
+            if (selectedRice == null || !Input.GetMouseButton(0))
             {
                 return;
             }
 
-            if (inputController.PaintScreenPoint(Input.mousePosition) && !hasRecordedSelectedRice)
+            SpreadInputController activeInputController = GetActiveInputController();
+            if (activeInputController == null)
+            {
+                return;
+            }
+
+            if (activeInputController.PaintScreenPoint(Input.mousePosition) && !hasRecordedSelectedRice)
             {
                 if (controller != null && controller.TryAddRice(selectedRice))
                 {
                     hasRecordedSelectedRice = true;
                 }
             }
+        }
+
+        private SpreadableSurface GetActiveSurface()
+        {
+            return controller != null && controller.CurrentRiceSurface != null
+                ? controller.CurrentRiceSurface
+                : surface;
+        }
+
+        private SpreadInputController GetActiveInputController()
+        {
+            return controller != null && controller.CurrentRiceInputController != null
+                ? controller.CurrentRiceInputController
+                : inputController;
         }
     }
 }

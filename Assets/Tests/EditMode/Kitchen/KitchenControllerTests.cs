@@ -37,12 +37,53 @@ namespace KimbapGame.Tests.Kitchen
         [Test]
         public void TryAddRice_AllowsDuplicatesUntilConfiguredLimit()
         {
+            GameObject seaweedObject = new GameObject("SeaweedObject");
+            KitchenIngredientDefinition seaweed = CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed);
             KitchenIngredientDefinition rice = CreateDefinition(KitchenIngredientCategory.Rice, IngredientType.Rice);
 
-            Assert.IsTrue(controller.TryAddRice(rice));
-            Assert.IsTrue(controller.TryAddRice(rice));
+            try
+            {
+                Assert.IsTrue(controller.TryAddSeaweed(seaweed));
+                controller.RegisterDroppedObject(seaweed, seaweedObject);
+
+                Assert.IsTrue(controller.TryAddRice(rice));
+                Assert.IsTrue(controller.TryAddRice(rice));
+                Assert.IsFalse(controller.TryAddRice(rice));
+                Assert.AreEqual(2, controller.PreparedKimbap.riceItems.Count);
+            }
+            finally
+            {
+                Object.DestroyImmediate(seaweedObject);
+            }
+        }
+
+        [Test]
+        public void TryAddRice_RequiresTopSeaweedSurface()
+        {
+            KitchenIngredientDefinition rice = CreateDefinition(KitchenIngredientCategory.Rice, IngredientType.Rice);
+
             Assert.IsFalse(controller.TryAddRice(rice));
-            Assert.AreEqual(2, controller.PreparedKimbap.riceItems.Count);
+            Assert.AreEqual(0, controller.PreparedKimbap.riceItems.Count);
+        }
+
+        [Test]
+        public void RegisterDroppedObject_ForSeaweedCreatesCurrentRiceSurface()
+        {
+            GameObject seaweedObject = new GameObject("SeaweedObject");
+            KitchenIngredientDefinition seaweed = CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed);
+
+            try
+            {
+                controller.RegisterDroppedObject(seaweed, seaweedObject);
+
+                Assert.AreSame(seaweedObject, controller.TopSeaweedObject);
+                Assert.IsNotNull(controller.CurrentRiceSurface);
+                Assert.IsNotNull(controller.CurrentRiceInputController);
+            }
+            finally
+            {
+                Object.DestroyImmediate(seaweedObject);
+            }
         }
 
         [Test]
