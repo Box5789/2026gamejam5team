@@ -50,6 +50,8 @@ namespace GameJam.Gameplay.Spreading
 
         public bool IsComplete => spreadMask != null && spreadMask.IsComplete(requiredCoverage);
 
+        public Color SurfaceColor => surfaceColor;
+
         private void Awake()
         {
             InitializeSurface();
@@ -130,6 +132,61 @@ namespace GameJam.Gameplay.Spreading
 
             selectedBrushIndex = brushSelector.SelectedIndex;
             return true;
+        }
+
+        public bool SelectOrCreateBrush(string id, string displayName, Color tint)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return false;
+            }
+
+            EnsureBrushDefinitions();
+
+            int brushIndex = -1;
+            for (int i = 0; i < brushes.Count; i++)
+            {
+                if (brushes[i] != null && string.Equals(brushes[i].Id, id, StringComparison.Ordinal))
+                {
+                    brushIndex = i;
+                    break;
+                }
+            }
+
+            SpreadBrushDefinition brushDefinition = new SpreadBrushDefinition(id, displayName, null, tint);
+            if (brushIndex >= 0)
+            {
+                brushes[brushIndex] = brushDefinition;
+            }
+            else
+            {
+                brushes.Add(brushDefinition);
+                brushIndex = brushes.Count - 1;
+            }
+
+            NormalizeBrushDefinitions();
+            brushRuntimeStates = BuildBrushRuntimeStates();
+            lastPaintWorldPoints = new Vector3[BrushCount];
+            hasLastPaintWorldPoints = new bool[BrushCount];
+            return SelectBrush(brushIndex);
+        }
+
+        public void SetSurfaceColor(Color color, bool resetPixels = true)
+        {
+            surfaceColor = color;
+
+            if (!resetPixels)
+            {
+                return;
+            }
+
+            if (spreadMask == null || spreadTexture == null)
+            {
+                return;
+            }
+
+            ResetPixelsToSurface();
+            ApplyTexture();
         }
 
         public int GetSelectedBrushIndex()
