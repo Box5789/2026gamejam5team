@@ -23,22 +23,22 @@ namespace KimbapGame.Evaluation
             KimbapEvaluationResult result = new KimbapEvaluationResult();
             if (order == null)
             {
-                result.AddCategory("주문 데이터", KimbapEvaluationResult.BaseMaxScore, 0f, "주문 데이터가 없습니다.");
-                result.FinalizeScore(KimbapEvaluationResult.BaseMaxScore, string.Empty, string.Empty, "주문 데이터가 없어서 평가할 수 없습니다.", string.Empty);
+                result.AddCategory("Order data", KimbapEvaluationResult.BaseMaxScore, 0f, "No order data was available.");
+                result.FinalizeScore(KimbapEvaluationResult.BaseMaxScore, string.Empty, string.Empty, "주문 정보가 없어 평가할 수 없어요.", string.Empty);
                 return result;
             }
 
             PreparedKimbapData prepared = preparedKimbap ?? new PreparedKimbapData();
             EvaluationProfile profile = EvaluationProfile.FromOrder(order);
 
-            result.AddCategory("김 상태", SeaweedScore, ScoreSeaweed(profile, prepared, out string seaweedNote), seaweedNote);
-            result.AddCategory("밥 조합", RiceCombinationScore, ScoreRiceCombination(profile, prepared, out string riceCombinationNote), riceCombinationNote);
-            result.AddCategory("밥 양", RiceAmountScore, ScoreRiceAmount(profile, prepared, out string riceAmountNote), riceAmountNote);
-            result.AddCategory("속재료 요구", FillingScore, ScoreFillings(profile, prepared, out string fillingNote), fillingNote);
-            result.AddCategory("가격 요구", PriceScore, ScorePrice(profile, prepared, out string priceNote), priceNote);
-            result.AddCategory("특수 재료/전용 재료", SpecialScore, ScoreSpecialIngredients(profile, prepared, out string specialNote), specialNote);
-            result.AddCategory("조립 완성도", AssemblyScore, ScoreAssembly(prepared, out string assemblyNote), assemblyNote);
-            result.AddCategory("요구 조건 반영", DetailScore, ScoreDetails(profile, prepared, out string detailNote), detailNote);
+            result.AddCategory("Seaweed", SeaweedScore, ScoreSeaweed(profile, prepared), string.Empty);
+            result.AddCategory("Rice combination", RiceCombinationScore, ScoreRiceCombination(profile, prepared), string.Empty);
+            result.AddCategory("Rice amount", RiceAmountScore, ScoreRiceAmount(profile, prepared), string.Empty);
+            result.AddCategory("Fillings", FillingScore, ScoreFillings(profile, prepared), string.Empty);
+            result.AddCategory("Price", PriceScore, ScorePrice(profile, prepared), string.Empty);
+            result.AddCategory("Special ingredients", SpecialScore, ScoreSpecialIngredients(profile, prepared), string.Empty);
+            result.AddCategory("Assembly", AssemblyScore, ScoreAssembly(prepared), string.Empty);
+            result.AddCategory("Details", DetailScore, ScoreDetails(profile, prepared), string.Empty);
             result.FinalizeScore(profile.maxScore, order.successDialogue, order.successImageName, order.failDialogue, order.failImageName);
             return result;
         }
@@ -97,49 +97,35 @@ namespace KimbapGame.Evaluation
             }
         }
 
-
-        private static float ScoreSeaweed(EvaluationProfile profile, PreparedKimbapData prepared, out string note)
+        private static float ScoreSeaweed(EvaluationProfile profile, PreparedKimbapData prepared)
         {
             if (prepared.seaweeds.Count == 0)
             {
-                note = "김이 없습니다.";
                 return 0f;
             }
 
-            bool hasWrongSpecial = HasUnrequestedSpecial(prepared.seaweeds, profile);
-            if (hasWrongSpecial)
+            if (HasUnrequestedSpecial(prepared.seaweeds, profile))
             {
-                note = "요구하지 않은 전용 김 재료가 들어갔습니다.";
                 return 0f;
             }
 
             if (string.IsNullOrEmpty(profile.requiredSeaweedToken))
             {
-                note = "김이 들어갔습니다.";
                 return SeaweedScore;
             }
 
-            if (ContainsToken(prepared.seaweeds, profile.requiredSeaweedToken))
-            {
-                note = "주문한 김 상태와 맞습니다.";
-                return SeaweedScore;
-            }
-
-            note = "김 종류는 있으나 상태가 다릅니다.";
-            return SeaweedScore * 0.55f;
+            return ContainsToken(prepared.seaweeds, profile.requiredSeaweedToken) ? SeaweedScore : SeaweedScore * 0.55f;
         }
 
-        private static float ScoreRiceCombination(EvaluationProfile profile, PreparedKimbapData prepared, out string note)
+        private static float ScoreRiceCombination(EvaluationProfile profile, PreparedKimbapData prepared)
         {
             if (prepared.riceItems.Count == 0)
             {
-                note = "밥이 없습니다.";
                 return 0f;
             }
 
             if (profile.requiredRiceTokens.Count == 0)
             {
-                note = "밥이 들어갔습니다.";
                 return RiceCombinationScore;
             }
 
@@ -150,157 +136,103 @@ namespace KimbapGame.Evaluation
                 score -= EstimateRiceRatioPenalty(profile, prepared);
             }
 
-            note = matched == profile.requiredRiceTokens.Count
-                ? "요구한 밥 종류를 모두 사용했습니다."
-                : "요구한 밥 종류 일부가 빠졌습니다.";
             return Clamp(score, 0f, RiceCombinationScore);
         }
 
-        private static float ScoreRiceAmount(EvaluationProfile profile, PreparedKimbapData prepared, out string note)
+        private static float ScoreRiceAmount(EvaluationProfile profile, PreparedKimbapData prepared)
         {
-            int count = prepared.riceItems.Count;
-            if (count == 0)
+            int actual = prepared.riceItems.Count;
+            int expected = profile.expectedRiceCount;
+            if (actual == 0)
             {
-                note = "밥 양이 0입니다.";
                 return 0f;
             }
 
-            if (profile.riceAmount == RiceAmountPreference.Thin)
+            if (expected <= 0)
             {
-                note = count <= 1 ? "얇은 밥 양에 가깝습니다." : "밥이 요청보다 많습니다.";
-                return count <= 1 ? RiceAmountScore : count == 2 ? 7f : 4f;
+                return actual <= 2 ? RiceAmountScore : actual == 3 ? 7f : 4f;
             }
 
-            if (profile.riceAmount == RiceAmountPreference.Heavy)
+            float ratio = (float)actual / expected;
+            if (ratio >= 0.8f && ratio <= 1.1f)
             {
-                note = count >= 3 ? "넉넉한 밥 양에 가깝습니다." : "밥이 요청보다 적습니다.";
-                return count >= 3 ? RiceAmountScore : count == 2 ? 7f : 4f;
+                return RiceAmountScore;
             }
 
-            note = count <= 2 ? "보통 밥 양입니다." : "밥이 약간 많습니다.";
-            return count <= 2 ? RiceAmountScore : count == 3 ? 7f : 4f;
+            if (ratio >= 0.5f && ratio <= 1.5f)
+            {
+                return 7f;
+            }
+
+            return 3f;
         }
 
-        private static float ScoreFillings(EvaluationProfile profile, PreparedKimbapData prepared, out string note)
+        private static float ScoreFillings(EvaluationProfile profile, PreparedKimbapData prepared)
         {
             if (prepared.fillings.Count == 0)
             {
-                note = "속재료가 없습니다.";
                 return 0f;
             }
 
             if (HasForbiddenFilling(profile, prepared.fillings))
             {
-                note = "금지 또는 요구하지 않은 특수 속재료가 들어갔습니다.";
                 return FillingScore * 0.2f;
             }
 
             if (profile.requiredFillingTokens.Count == 0)
             {
-                note = "속재료가 들어갔습니다.";
                 return FillingScore;
             }
 
             int matched = CountMatchedTokens(profile.requiredFillingTokens, prepared.fillings);
-            float ratio = (float)matched / profile.requiredFillingTokens.Count;
-            note = matched == profile.requiredFillingTokens.Count
-                ? "요구한 핵심 속재료를 모두 넣었습니다."
-                : "요구한 핵심 속재료 일부가 빠졌습니다.";
-            return FillingScore * ratio;
+            return FillingScore * ((float)matched / profile.requiredFillingTokens.Count);
         }
 
-        private static float ScorePrice(EvaluationProfile profile, PreparedKimbapData prepared, out string note)
+        private static float ScorePrice(EvaluationProfile profile, PreparedKimbapData prepared)
         {
             if (profile.targetPrice <= 0)
             {
-                note = "가격 요구가 없어 만점 처리합니다.";
                 return PriceScore;
             }
 
             int price = CalculatePrice(prepared);
             float overRatio = ((float)price - profile.targetPrice) / profile.targetPrice;
-            if (overRatio <= 0f)
-            {
-                note = $"목표 가격 {profile.targetPrice.ToString(CultureInfo.InvariantCulture)}원 이하입니다.";
-                return PriceScore;
-            }
-
-            if (overRatio <= 0.05f)
-            {
-                note = "목표 가격을 5% 이내로 초과했습니다.";
-                return 12f;
-            }
-
-            if (overRatio <= 0.1f)
-            {
-                note = "목표 가격을 10% 이내로 초과했습니다.";
-                return 8f;
-            }
-
-            if (overRatio <= 0.2f)
-            {
-                note = "목표 가격을 20% 이내로 초과했습니다.";
-                return 4f;
-            }
-
-            note = "예산을 크게 초과했습니다.";
+            if (overRatio <= 0f) return PriceScore;
+            if (overRatio <= 0.05f) return 12f;
+            if (overRatio <= 0.1f) return 8f;
+            if (overRatio <= 0.2f) return 4f;
             return 0f;
         }
 
-        private static float ScoreSpecialIngredients(EvaluationProfile profile, PreparedKimbapData prepared, out string note)
+        private static float ScoreSpecialIngredients(EvaluationProfile profile, PreparedKimbapData prepared)
         {
             List<PreparedKimbapItem> specialItems = prepared.AllItems.Where(IsSpecialItem).ToList();
             if (profile.requiredSpecialTokens.Count == 0)
             {
-                note = specialItems.Count == 0 ? "요구하지 않은 전용 재료가 없습니다." : "요구하지 않은 전용 재료가 들어갔습니다.";
                 return specialItems.Count == 0 ? SpecialScore : 0f;
             }
 
             int matched = CountMatchedTokens(profile.requiredSpecialTokens, prepared.AllItems);
-            note = matched == profile.requiredSpecialTokens.Count
-                ? "요구한 전용 재료를 사용했습니다."
-                : "요구한 전용 재료가 빠졌습니다.";
             return SpecialScore * ((float)matched / profile.requiredSpecialTokens.Count);
         }
 
-        private static float ScoreAssembly(PreparedKimbapData prepared, out string note)
+        private static float ScoreAssembly(PreparedKimbapData prepared)
         {
             if (prepared.seaweeds.Count == 0 || prepared.riceItems.Count == 0 || prepared.fillings.Count == 0)
             {
-                note = "김밥 구성 요소가 빠져 완성도가 낮습니다.";
                 return 3f;
             }
 
             int totalItems = prepared.seaweeds.Count + prepared.riceItems.Count + prepared.fillings.Count;
-            if (totalItems > 16)
-            {
-                note = "재료가 너무 많아 삐져나올 가능성이 큽니다.";
-                return 6f;
-            }
-
-            note = "현재 데이터상 조립 문제가 없습니다.";
-            return AssemblyScore;
+            return totalItems > 16 ? 6f : AssemblyScore;
         }
 
-        private static float ScoreDetails(EvaluationProfile profile, PreparedKimbapData prepared, out string note)
+        private static float ScoreDetails(EvaluationProfile profile, PreparedKimbapData prepared)
         {
             float score = DetailScore;
-            if (profile.requiresExactOrder && !HasBasicOrder(prepared))
-            {
-                score -= 4f;
-            }
-
-            if (profile.requiredFillingTokens.Count > 0 && CountMatchedTokens(profile.requiredFillingTokens, prepared.fillings) < profile.requiredFillingTokens.Count)
-            {
-                score -= 3f;
-            }
-
-            if (profile.requiredRiceTokens.Count > 0 && CountMatchedTokens(profile.requiredRiceTokens, prepared.riceItems) < profile.requiredRiceTokens.Count)
-            {
-                score -= 2f;
-            }
-
-            note = score >= DetailScore ? "세부 요구를 반영했습니다." : "세부 요구 일부가 빠졌습니다.";
+            if (profile.requiresExactOrder && !HasBasicOrder(prepared)) score -= 4f;
+            if (profile.requiredFillingTokens.Count > 0 && CountMatchedTokens(profile.requiredFillingTokens, prepared.fillings) < profile.requiredFillingTokens.Count) score -= 3f;
+            if (profile.requiredRiceTokens.Count > 0 && CountMatchedTokens(profile.requiredRiceTokens, prepared.riceItems) < profile.requiredRiceTokens.Count) score -= 2f;
             return Clamp(score, 0f, DetailScore);
         }
 
@@ -325,10 +257,9 @@ namespace KimbapGame.Evaluation
 
         private static bool ContainsToken(IEnumerable<PreparedKimbapItem> items, string token)
         {
-            string normalizedToken = Normalize(token);
             foreach (PreparedKimbapItem item in items)
             {
-                if (ItemContains(item, normalizedToken))
+                if (ItemContains(item, token))
                 {
                     return true;
                 }
@@ -337,16 +268,18 @@ namespace KimbapGame.Evaluation
             return false;
         }
 
-        private static bool ItemContains(PreparedKimbapItem item, string normalizedToken)
+        private static bool ItemContains(PreparedKimbapItem item, string token)
         {
-            if (item == null || string.IsNullOrEmpty(normalizedToken))
+            if (item == null || string.IsNullOrEmpty(token))
             {
                 return false;
             }
 
+            string normalizedToken = Normalize(token);
             return ContainsNormalized(item.variantId, normalizedToken)
                 || ContainsNormalized(item.displayName, normalizedToken)
-                || ContainsNormalized(item.ingredientType.ToString(), normalizedToken);
+                || ContainsNormalized(item.ingredientType.ToString(), normalizedToken)
+                || ContainsNormalized(ToToken(item.ingredientType), normalizedToken);
         }
 
         private static bool ContainsNormalized(string value, string normalizedToken)
@@ -363,17 +296,7 @@ namespace KimbapGame.Evaluation
                     continue;
                 }
 
-                bool requested = false;
-                foreach (string token in profile.requiredSpecialTokens)
-                {
-                    if (ItemContains(item, Normalize(token)))
-                    {
-                        requested = true;
-                        break;
-                    }
-                }
-
-                if (!requested)
+                if (!profile.requiredSpecialTokens.Any(token => ItemContains(item, token)))
                 {
                     return true;
                 }
@@ -386,12 +309,9 @@ namespace KimbapGame.Evaluation
         {
             foreach (PreparedKimbapItem item in items)
             {
-                foreach (string forbiddenToken in profile.forbiddenTokens)
+                if (profile.forbiddenTokens.Any(token => ItemContains(item, token)))
                 {
-                    if (ItemContains(item, Normalize(forbiddenToken)))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
 
                 if (IsSpecialItem(item) && HasUnrequestedSpecial(new[] { item }, profile))
@@ -405,7 +325,7 @@ namespace KimbapGame.Evaluation
 
         private static bool IsSpecialItem(PreparedKimbapItem item)
         {
-            return ItemContains(item, "foil") || ItemContains(item, "호일") || ItemContains(item, "stone") || ItemContains(item, "rock") || ItemContains(item, "돌멩") || ItemContains(item, "돌");
+            return ItemContains(item, "foil") || ItemContains(item, "호일") || ItemContains(item, "stone") || ItemContains(item, "rock") || ItemContains(item, "돌") || ItemContains(item, "돌멩이");
         }
 
         private static float EstimateRiceRatioPenalty(EvaluationProfile profile, PreparedKimbapData prepared)
@@ -418,7 +338,7 @@ namespace KimbapGame.Evaluation
             float penalty = 0f;
             foreach (KeyValuePair<string, float> pair in profile.riceRatioTokens)
             {
-                int count = prepared.riceItems.Count(item => ItemContains(item, Normalize(pair.Key)));
+                int count = prepared.riceItems.Count(item => ItemContains(item, pair.Key));
                 float actualRatio = (float)count / prepared.riceItems.Count;
                 penalty += Math.Abs(actualRatio - pair.Value) * 4f;
             }
@@ -439,15 +359,8 @@ namespace KimbapGame.Evaluation
 
         private static int GetItemPrice(PreparedKimbapItem item)
         {
-            if (item == null)
-            {
-                return 0;
-            }
-
-            if (IsSpecialItem(item))
-            {
-                return 1200;
-            }
+            if (item == null) return 0;
+            if (IsSpecialItem(item)) return 1200;
 
             switch (item.category)
             {
@@ -456,24 +369,32 @@ namespace KimbapGame.Evaluation
                 case KitchenIngredientCategory.Rice:
                     return 400;
                 case KitchenIngredientCategory.Filling:
-                    if (ItemContains(item, "tuna") || ItemContains(item, "참치"))
-                    {
-                        return 900;
-                    }
-
-                    return 600;
+                    return item.ingredientType == IngredientType.Tuna || item.ingredientType == IngredientType.CrabMeat ? 900 : 600;
                 default:
                     return 0;
             }
         }
 
+        private static string ToToken(IngredientType ingredientType)
+        {
+            switch (ingredientType)
+            {
+                case IngredientType.Seaweed: return "seaweed";
+                case IngredientType.Rice: return "rice";
+                case IngredientType.Ham: return "ham";
+                case IngredientType.Egg: return "egg";
+                case IngredientType.Carrot: return "carrot";
+                case IngredientType.Spinach: return "spinach";
+                case IngredientType.Tuna: return "tuna";
+                case IngredientType.CrabMeat: return "crabmeat";
+                case IngredientType.PickledRadish: return "pickledradish";
+                default: return ingredientType.ToString();
+            }
+        }
+
         private static float Clamp(float value, float min, float max)
         {
-            if (value < min)
-            {
-                return min;
-            }
-
+            if (value < min) return min;
             return value > max ? max : value;
         }
 
@@ -482,19 +403,12 @@ namespace KimbapGame.Evaluation
             return (value ?? string.Empty).Trim().Replace(" ", string.Empty).Replace("-", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
         }
 
-        private enum RiceAmountPreference
-        {
-            Normal,
-            Thin,
-            Heavy
-        }
-
         private sealed class EvaluationProfile
         {
             public float maxScore = KimbapEvaluationResult.BaseMaxScore;
             public float targetPrice;
             public string requiredSeaweedToken;
-            public RiceAmountPreference riceAmount = RiceAmountPreference.Normal;
+            public int expectedRiceCount;
             public bool requiresExactOrder;
             public readonly List<string> requiredRiceTokens = new List<string>();
             public readonly List<string> requiredFillingTokens = new List<string>();
@@ -509,8 +423,8 @@ namespace KimbapGame.Evaluation
                 profile.maxScore = ParseMaxScore(text);
                 profile.targetPrice = ParseTargetPrice(text);
                 profile.requiredSeaweedToken = ParseSeaweedToken(text, order.seaweedName);
-                profile.riceAmount = ParseRiceAmount(text);
-                profile.requiresExactOrder = ContainsAny(text, "순서", "차례", "먼저");
+                profile.expectedRiceCount = order.riceCount;
+                profile.requiresExactOrder = ContainsAny(text, "순서", "차례", "먼저", "order");
                 AddRiceRequirements(profile, text, order.riceName);
                 AddFillingRequirements(profile, text, order.fillingName, order.ingredients);
                 AddSpecialRequirements(profile, text);
@@ -527,40 +441,37 @@ namespace KimbapGame.Evaluation
             private static float ParseMaxScore(string text)
             {
                 float score = ParseNumberBeforeKeyword(text, "만점");
-                if (score > 0f)
-                {
-                    return score;
-                }
-
-                if (ContainsAny(text, "낮은만점", "쉬운손님"))
-                {
-                    return 50f;
-                }
-
-                return KimbapEvaluationResult.BaseMaxScore;
+                return score > 0f ? score : KimbapEvaluationResult.BaseMaxScore;
             }
 
             private static float ParseTargetPrice(string text)
             {
-                return ParseNumberBeforeKeyword(text, "원");
+                float wonPrice = ParseNumberBeforeKeyword(text, "원");
+                if (wonPrice > 0f) return wonPrice;
+
+                string normalized = Normalize(text).Replace(",", string.Empty);
+                string digits = new string(normalized.Where(char.IsDigit).ToArray());
+                if (digits.Length >= 4 && float.TryParse(digits, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
+                {
+                    return parsed;
+                }
+
+                return 0f;
             }
 
             private static float ParseNumberBeforeKeyword(string text, string keyword)
             {
-                string normalized = Normalize(text);
-                int keywordIndex = normalized.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
-                if (keywordIndex < 0)
-                {
-                    return 0f;
-                }
+                string normalized = Normalize(text).Replace(",", string.Empty);
+                int keywordIndex = normalized.IndexOf(Normalize(keyword), StringComparison.OrdinalIgnoreCase);
+                if (keywordIndex < 0) return 0f;
 
                 int start = keywordIndex - 1;
-                while (start >= 0 && (char.IsDigit(normalized[start]) || normalized[start] == ','))
+                while (start >= 0 && char.IsDigit(normalized[start]))
                 {
                     start--;
                 }
 
-                string number = normalized.Substring(start + 1, keywordIndex - start - 1).Replace(",", string.Empty);
+                string number = normalized.Substring(start + 1, keywordIndex - start - 1);
                 return float.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed) ? parsed : 0f;
             }
 
@@ -570,75 +481,49 @@ namespace KimbapGame.Evaluation
                 if (ContainsAny(source, "호일", "foil")) return "foil";
                 if (ContainsAny(source, "참기름", "sesame")) return "sesame";
                 if (ContainsAny(source, "구운", "굽", "roasted")) return "roasted";
-                if (ContainsAny(source, "소금", "salted")) return "salted";
-                if (ContainsAny(source, "두꺼운", "thick")) return "thick";
-                if (ContainsAny(source, "기본", "plain")) return "plain";
+                if (ContainsAny(source, "적신", "젖은", "wet")) return "wet";
+                if (ContainsAny(source, "기본", "plain", "김")) return "seaweed";
                 return string.Empty;
-            }
-
-            private static RiceAmountPreference ParseRiceAmount(string text)
-            {
-                if (ContainsAny(text, "얇게", "적게", "조금", "thin")) return RiceAmountPreference.Thin;
-                if (ContainsAny(text, "많이", "두껍", "넉넉", "heavy")) return RiceAmountPreference.Heavy;
-                return RiceAmountPreference.Normal;
             }
 
             private static void AddRiceRequirements(EvaluationProfile profile, string text, string riceName)
             {
                 string source = Join(text, riceName);
-                AddIfMentioned(profile.requiredRiceTokens, source, "white", "흰쌀", "흰밥", "쌀밥", "white rice");
-                AddIfMentioned(profile.requiredRiceTokens, source, "brown", "현미", "brown rice");
-                AddIfMentioned(profile.requiredRiceTokens, source, "black", "흑미", "black rice");
-                AddIfMentioned(profile.requiredRiceTokens, source, "seasoned", "양념밥", "seasoned rice");
-                AddIfMentioned(profile.requiredRiceTokens, source, "spicy", "매운밥", "spicy rice");
+                AddIfMentioned(profile.requiredRiceTokens, source, "white", "흰밥", "쌀밥", "백미", "white", "white rice");
+                AddIfMentioned(profile.requiredRiceTokens, source, "brown", "현미", "brown", "brown rice");
+                AddIfMentioned(profile.requiredRiceTokens, source, "black", "흑미", "black", "black rice");
+                AddIfMentioned(profile.requiredRiceTokens, source, "seasoned", "양념밥", "seasoned");
+                AddIfMentioned(profile.requiredRiceTokens, source, "spicy", "매운밥", "spicy");
             }
 
             private static void AddFillingRequirements(EvaluationProfile profile, string text, string fillingName, List<IngredientType> ingredients)
             {
                 string source = Join(text, fillingName);
-                if (ContainsAny(source, "기본"))
-                {
-                    AddUnique(profile.requiredFillingTokens, "ham");
-                    AddUnique(profile.requiredFillingTokens, "egg");
-                    AddUnique(profile.requiredFillingTokens, "carrot");
-                    AddUnique(profile.requiredFillingTokens, "spinach");
-                    AddUnique(profile.requiredFillingTokens, "pickledradish");
-                }
-
                 AddIfMentioned(profile.requiredFillingTokens, source, "ham", "햄", "ham");
                 AddIfMentioned(profile.requiredFillingTokens, source, "egg", "계란", "달걀", "egg");
                 AddIfMentioned(profile.requiredFillingTokens, source, "carrot", "당근", "carrot");
                 AddIfMentioned(profile.requiredFillingTokens, source, "spinach", "시금치", "spinach");
                 AddIfMentioned(profile.requiredFillingTokens, source, "pickledradish", "단무지", "pickled radish", "radish");
                 AddIfMentioned(profile.requiredFillingTokens, source, "tuna", "참치", "tuna");
-                AddIfMentioned(profile.requiredFillingTokens, source, "crab", "맛살", "crab");
-                AddIfMentioned(profile.requiredFillingTokens, source, "burdock", "우엉", "burdock");
+                AddIfMentioned(profile.requiredFillingTokens, source, "crabmeat", "맛살", "게맛살", "크래미", "crab");
 
-                if (ingredients == null)
-                {
-                    return;
-                }
-
+                if (ingredients == null) return;
                 foreach (IngredientType ingredient in ingredients)
                 {
-                    if (ingredient == IngredientType.Seaweed || ingredient == IngredientType.Rice)
-                    {
-                        continue;
-                    }
-
-                    AddUnique(profile.requiredFillingTokens, Normalize(ingredient.ToString()));
+                    if (ingredient == IngredientType.Seaweed || ingredient == IngredientType.Rice) continue;
+                    AddUnique(profile.requiredFillingTokens, ToToken(ingredient));
                 }
             }
 
             private static void AddSpecialRequirements(EvaluationProfile profile, string text)
             {
                 AddIfMentioned(profile.requiredSpecialTokens, text, "foil", "호일", "foil");
-                AddIfMentioned(profile.requiredSpecialTokens, text, "stone", "돌멩", "돌", "stone", "rock");
+                AddIfMentioned(profile.requiredSpecialTokens, text, "stone", "돌멩이", "돌", "stone", "rock");
             }
 
             private static void AddForbiddenRequirements(EvaluationProfile profile, string text)
             {
-                if (ContainsAny(text, "오이제외", "오이빼", "오이는빼", "no cucumber"))
+                if (ContainsAny(text, "오이제외", "오이 빼", "오이빼", "오이 넣지", "no cucumber"))
                 {
                     AddUnique(profile.forbiddenTokens, "cucumber");
                     AddUnique(profile.forbiddenTokens, "오이");
