@@ -1,4 +1,4 @@
-# Kitchen Scene Shared Design
+﻿# Kitchen Scene Shared Design
 
 작성 브랜치: `hosung`  
 담당 씬: `kitchen`  

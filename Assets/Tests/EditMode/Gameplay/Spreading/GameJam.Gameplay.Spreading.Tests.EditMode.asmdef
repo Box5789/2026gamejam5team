@@ -1,0 +1,21 @@
+{
+    "name": "GameJam.Gameplay.Spreading.Tests.EditMode",
+    "rootNamespace": "GameJam.Gameplay.Spreading.Tests",
+    "references": [
+        "GameJam.Gameplay.Spreading"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}
