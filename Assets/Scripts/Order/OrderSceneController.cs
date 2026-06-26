@@ -143,13 +143,37 @@ namespace KimbapGame.Order
                 {
                     orders.Clear();
                     orders.AddRange(loadedOrders);
-                    ShowNextOrder();
+
+                    if (!TryRestoreCurrentOrder())
+                    {
+                        ShowNextOrder();
+                    }
                 },
                 error =>
                 {
                     Debug.LogWarning($"Order sheet load failed: {error}");
                     SetConversation(errorMessage);
                 });
+        }
+
+        private bool TryRestoreCurrentOrder()
+        {
+            SheetOrderData savedOrder = SharedOrderContext.CurrentSheetOrder;
+            if (savedOrder == null)
+            {
+                return false;
+            }
+
+            int restoredIndex = orders.FindIndex(order => order.index == savedOrder.index);
+            if (restoredIndex < 0)
+            {
+                restoredIndex = orders.FindIndex(order => order.customerName == savedOrder.customerName && order.orderDialogue == savedOrder.orderDialogue);
+            }
+
+            currentOrderIndex = restoredIndex;
+            currentOrder = restoredIndex >= 0 ? orders[restoredIndex] : savedOrder;
+            ShowCurrentOrderDialogue();
+            return true;
         }
 
         private void ShowNextOrder()
@@ -177,6 +201,16 @@ namespace KimbapGame.Order
             }
 
             currentOrder = orders[currentOrderIndex];
+            ShowCurrentOrderDialogue();
+        }
+
+        private void ShowCurrentOrderDialogue()
+        {
+            if (currentOrder == null)
+            {
+                return;
+            }
+
             SetConversation(currentOrder.orderDialogue);
             SetPersonImage(currentOrder.orderImageName);
         }
