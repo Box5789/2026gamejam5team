@@ -1041,9 +1041,9 @@ MonoBehaviour:
   seaweedTableRoot: {fileID: 151001}
   riceTableRoot: {fileID: 152001}
   fillingTableRoot: {fileID: 153001}
-  sourceLocalStart: {x: -4.5, y: 3.28, z: -0.2}
-  sourceSpacing: {x: 1.1, y: -0.85}
-  itemsPerRow: 10
+  sourceRowCenter: {x: 0, y: 2.5, z: -0.2}
+  sourceSpacing: {x: 1.1, y: -0.8}
+  itemsPerRow: 15
   sourceLocalScale: {x: 1, y: 1, z: 1}
   seaweedDragPreviewSize: {x: 2.4, y: 1.7}
   riceDragPreviewSize: {x: 2.8, y: 0.28}
@@ -1656,6 +1656,71 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 155300}
   m_CullTransparentMesh: 1
+--- !u!1001 &1900000
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 100000, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_Name
+      value: KitchenHandCursor
+      objectReference: {fileID: 0}
+    - target: {fileID: 100000, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -3
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100001, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100002, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
+      propertyPath: targetCamera
+      value: 
+      objectReference: {fileID: 100002}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 707d1a96a9bb4f1e90849cce0ac1c2cb, type: 3}
 --- !u!213 &172197922
 Sprite:
   m_ObjectHideFlags: 0
@@ -1925,3 +1990,4 @@ SceneRoots:
   - {fileID: 132001}
   - {fileID: 140001}
   - {fileID: 150001}
+  - {fileID: 1900000}

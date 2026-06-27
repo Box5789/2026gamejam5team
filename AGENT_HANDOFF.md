@@ -2,7 +2,109 @@
 
 ## Current Goal
 
-Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, and `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms instead of duplicated spacing/count numbers.
+Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, ingredient source rows center themselves from CSV counts, the hand/arm cursor is prefab-backed, and `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms instead of duplicated spacing/count numbers.
+
+## 2026-06-27 KitchenHandCursor Root Child Arm Rig
+
+- Refactored `KitchenHandCursor` to the user-confirmed root-child rig:
+  - `KitchenHandCursor`
+  - `ArmPivot`: blue reference point, camera viewport anchor + `armPivotWorldOffset`.
+  - `HandPivot`: red reference point, follows mouse/touch pointer world position.
+  - `Arm`: direct child of `KitchenHandCursor`, owns shared hand/arm visual pose.
+  - `Arm/HandVisual`: actual hand sprite renderer.
+  - `Arm/ArmVisual`: actual arm sprite renderer.
+- Runtime contract:
+  - `HandPivot.position` is the pointer world position.
+  - `ArmPivot.position` is the viewport anchor world position plus offset.
+  - `Arm.rotation` looks from `ArmPivot` toward `HandPivot`, plus `armAngleOffset`.
+  - `Arm.position` is `HandPivot.position + rotated armOffsetFromHandPivot`.
+  - `Arm.localScale`, `HandVisual` local transform, and `ArmVisual` local transform are all Inspector-tunable.
+- Kept existing behavior:
+  - Mouse / first active touch tracking.
+  - Pressed hand sprite switching, with default-sprite fallback.
+  - Edit Mode preview via `OnValidate`.
+  - Outside-camera hide/restore behavior.
+- Updated `Assets/Prefabs/Kitchen/KitchenHandCursor.prefab`.
+  - Preserved root and component fileIDs so the scene `targetCamera` prefab override stays connected.
+  - Activated the scene instance in `Assets/Scenes/kitchen.unity`; it was previously serialized with `m_IsActive: 0`.
+- Updated tests:
+  - `KitchenHandCursorTests` now covers `HandPivot`, `ArmPivot`, `Arm` rotation/offset, visual local tuning, edit preview, pressed-sprite fallback, and outside-camera hide/restore.
+  - `KitchenSceneWiringTests` now checks `armPivot`, `handPivot`, `armRoot`, `handVisualRoot`, `armVisualRoot`, and `handRenderer`.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 existing warnings in `OrderSceneController`.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - Prefab structure grep confirmed `ArmPivot`, `HandPivot`, `Arm`, `HandVisual`, and `ArmVisual` are present and wired.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+- User tuning note:
+  - The implementation exposes the rig values; final natural-looking position/rotation/scale values are intentionally left for the user to tune in Inspector.
+
+## 2026-06-27 KitchenHandCursor Edit Mode Preview
+
+- Added edit-mode preview controls to `KitchenHandCursor`.
+  - `previewInEditMode`
+  - `editModePreviewViewportPosition`
+  - `editModePreviewPressed`
+- `OnValidate` now applies a preview pose while not in Play Mode.
+  - Uses the serialized `targetCamera`; if no camera is wired, it updates only the hand sprite and leaves transforms alone.
+  - Preview pose applies immediately without follow smoothing so Inspector changes are visible in Scene View.
+  - Runtime mouse/touch tracking still uses the existing Play Mode `LateUpdate` path.
+- Updated `KitchenHandCursor.prefab`.
+  - `previewInEditMode = true`
+  - `editModePreviewViewportPosition = (0.5, 0.5)`
+  - `editModePreviewPressed = false`
+- Tests:
+  - Extended `KitchenHandCursorTests` for preview viewport placement, arm rotation recalculation after serialized value changes, pressed preview sprite, and pressed-sprite fallback.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 pre-existing warnings in `OrderSceneController`.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
+## 2026-06-27 Kitchen Hand/Arm Cursor Visual
+
+- Added `KitchenHandCursor`.
+  - Tracks the current pointer from mouse or the first active touch.
+  - Moves `handRoot` to the pointer world position plus serialized `handOffset`.
+  - Places `armRoot` at serialized camera viewport anchor `armAnchorViewportPosition` and rotates it toward the hand.
+  - Swaps to `pressedHandSprite` while mouse/touch is active; if no pressed sprite is provided, it keeps the default hand sprite.
+  - `hideWhenOutsideCamera` hides both hand and arm when the pointer leaves the camera pixel rect.
+- Added `Assets/Prefabs/Kitchen/KitchenHandCursor.prefab`.
+  - Root has `KitchenHandCursor`.
+  - Child `ArmRoot` and `HandRoot` use `SpriteRenderer` + `KitchenPlaceholderSprite` with skin-tone placeholders.
+  - No colliders are present, so the cursor stays visual-only and does not block existing click/drag/rice-paint input.
+  - `ArmRoot` sorting order is 299 and `HandRoot` sorting order is 300, above the drag preview.
+- Updated `Assets/Scenes/kitchen.unity`.
+  - Added a connected `KitchenHandCursor.prefab` instance.
+  - Wired its `targetCamera` to `Main Camera`.
+- Tests:
+  - Added `KitchenHandCursorTests` for screen-to-world hand placement, viewport arm anchor placement, arm rotation, pressed sprite swap, pressed-sprite fallback, and camera-outside hide/restore.
+  - Extended `KitchenSceneWiringTests` to verify the hand cursor prefab instance and its serialized references.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 pre-existing warnings in `OrderSceneController`.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+- User validation:
+  - The user will verify in Play Mode whether hand/arm position, rotation, offset, and sprite timing look natural.
+  - Replace the placeholder arm/hand sprites in the prefab when art is ready; keep the arm sprite pivot near the shoulder/start point, and tune `armAngleOffset` if the sprite's forward direction is not +X.
+
+## 2026-06-27 Kitchen Ingredient Source Row Centering
+
+- Changed `KitchenIngredientTablePopulator` source placement from left-start layout to row-centered layout.
+  - Serialized `sourceLocalStart` became `sourceRowCenter`.
+  - Each category is grouped before spawning so placement receives both `index` and category `totalCount`.
+  - Each row calculates its own `rowItemCount`, so short rows and final partial rows center around `sourceRowCenter.x`.
+- Updated `Assets/Scenes/kitchen.unity`.
+  - `sourceRowCenter` is `{x: 0, y: 3.28, z: -0.2}`.
+  - Existing `sourceSpacing`, `itemsPerRow`, and `sourceLocalScale` values are unchanged.
+- Updated `OnDrawGizmos`.
+  - Scene View source guides now reuse the same placement function as runtime spawning.
+  - Edit-mode gizmos read the local ingredient CSV when possible, so table guides reflect current category counts.
+  - Camera frame gizmos still draw from the serialized target camera.
+- Tests:
+  - `KitchenIngredientTablePopulatorTests` now covers 1, 2, 10, 11, and 12 seaweed rows so full rows and partial second rows stay centered.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 pre-existing warnings in `OrderSceneController`.
+  - Production grep `rg -n "sourceLocalStart|new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
 
 ## 2026-06-27 Rice Brush Image Pattern Settings in Ingredient Sheet Rows
 

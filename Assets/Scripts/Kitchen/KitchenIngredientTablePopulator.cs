@@ -2,8 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using NUnit.Framework;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -21,7 +19,7 @@ namespace KimbapGame.Kitchen
         [SerializeField] private Transform seaweedTableRoot;
         [SerializeField] private Transform riceTableRoot;
         [SerializeField] private Transform fillingTableRoot;
-        [SerializeField] private Vector3 sourceLocalStart = new Vector3(-2.8f, 2.2f, -0.2f);
+        [SerializeField] private Vector3 sourceRowCenter = new Vector3(0f, 2.2f, -0.2f);
         [SerializeField] private Vector2 sourceSpacing = new Vector2(1.05f, -0.85f);
         [SerializeField] private int itemsPerRow = 6;
         [SerializeField] private Vector3 sourceLocalScale = new Vector3(0.78f, 0.48f, 1f);
@@ -73,34 +71,43 @@ namespace KimbapGame.Kitchen
                 return;
             }
 
-            int seaweedIndex = 0;
-            int riceIndex = 0;
-            int fillingIndex = 0;
+            List<KitchenIngredientCatalogItem> seaweedItems = new List<KitchenIngredientCatalogItem>();
+            List<KitchenIngredientCatalogItem> riceItems = new List<KitchenIngredientCatalogItem>();
+            List<KitchenIngredientCatalogItem> fillingItems = new List<KitchenIngredientCatalogItem>();
             foreach (KitchenIngredientCatalogItem item in catalog.SourceItems)
             {
                 switch (item.Category)
                 {
                     case KitchenIngredientCategory.Seaweed:
-                        SpawnSource(item, seaweedTableRoot, seaweedIndex);
-                        seaweedIndex++;
+                        seaweedItems.Add(item);
                         break;
                     case KitchenIngredientCategory.Rice:
-                        SpawnSource(item, riceTableRoot, riceIndex);
-                        riceIndex++;
+                        riceItems.Add(item);
                         break;
                     case KitchenIngredientCategory.Filling:
-                        SpawnSource(item, fillingTableRoot, fillingIndex);
-                        fillingIndex++;
+                        fillingItems.Add(item);
                         break;
                 }
             }
+
+            SpawnSources(seaweedItems, seaweedTableRoot);
+            SpawnSources(riceItems, riceTableRoot);
+            SpawnSources(fillingItems, fillingTableRoot);
         }
 
-        private void SpawnSource(KitchenIngredientCatalogItem item, Transform parent, int index)
+        private void SpawnSources(IReadOnlyList<KitchenIngredientCatalogItem> items, Transform parent)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                SpawnSource(items[i], parent, i, items.Count);
+            }
+        }
+
+        private void SpawnSource(KitchenIngredientCatalogItem item, Transform parent, int index, int totalCount)
         {
             KitchenIngredientSource source = Instantiate(sourcePrefab, parent);
             source.name = $"{item.DisplayName} Source";
-            source.transform.localPosition = GetSourceLocalPosition(index);
+            source.transform.localPosition = GetSourceLocalPosition(index, totalCount);
             source.transform.localRotation = Quaternion.identity;
             source.transform.localScale = sourceLocalScale;
             source.Configure(
@@ -112,12 +119,18 @@ namespace KimbapGame.Kitchen
             spawnedSources.Add(source);
         }
 
-        private Vector3 GetSourceLocalPosition(int index)
+        private Vector3 GetSourceLocalPosition(int index, int totalCount)
         {
             int columns = Mathf.Max(1, itemsPerRow);
             int row = index / columns;
             int column = index % columns;
-            return sourceLocalStart + new Vector3(sourceSpacing.x * column, sourceSpacing.y * row, 0f);
+            int rowItemCount = Mathf.Min(columns, Mathf.Max(1, totalCount - (row * columns)));
+            float rowWidth = (rowItemCount - 1) * sourceSpacing.x;
+            float x = sourceRowCenter.x - (rowWidth * 0.5f) + (sourceSpacing.x * column);
+            int rowCount = Mathf.CeilToInt(totalCount / (float)columns);
+            float rowOffset = row - ((rowCount - 1) * 0.5f);
+            float y = sourceRowCenter.y + (sourceSpacing.y * rowOffset);
+            return new Vector3(x, y, sourceRowCenter.z);
         }
 
         private Vector2 GetDragPreviewSize(KitchenIngredientCategory category)
@@ -199,37 +212,93 @@ namespace KimbapGame.Kitchen
 
         private void OnDrawGizmos()
         {
-            var asdf = new List<Vector3>();
-            var qwer=new List<Color>();
-            asdf.Add(seaweedTableRoot.position);
-            asdf.Add(riceTableRoot.position);
-            asdf.Add(fillingTableRoot.position);
-            qwer.Add(Color.green);
-            qwer.Add(Color.red);
-            qwer.Add(Color.yellow);
-            for (int i = 0; i < asdf.Count; i++)
+            KitchenIngredientCatalog catalog = TryLoadLocalCatalogForGizmos();
+            DrawTableGizmos(seaweedTableRoot, KitchenIngredientCategory.Seaweed, catalog, Color.green);
+            DrawTableGizmos(riceTableRoot, KitchenIngredientCategory.Rice, catalog, Color.red);
+            DrawTableGizmos(fillingTableRoot, KitchenIngredientCategory.Filling, catalog, Color.yellow);
+            DrawCameraFrameGizmo(CompleteTableRoot);
+        }
+
+        private void DrawTableGizmos(
+            Transform tableRoot,
+            KitchenIngredientCategory category,
+            KitchenIngredientCatalog catalog,
+            Color sourceColor)
+        {
+            if (tableRoot == null)
             {
-                Gizmos.color = qwer[i];
-                var a = sourceLocalStart+asdf[i];
-                for (int j = 0; j < itemsPerRow; j++)
+                return;
+            }
+
+            int sourceCount = GetGizmoSourceCount(tableRoot, category, catalog);
+            Matrix4x4 previousMatrix = Gizmos.matrix;
+            Gizmos.matrix = tableRoot.localToWorldMatrix;
+            Gizmos.color = sourceColor;
+            for (int i = 0; i < sourceCount; i++)
+            {
+                Gizmos.DrawWireCube(GetSourceLocalPosition(i, sourceCount), sourceLocalScale);
+            }
+
+            Gizmos.matrix = previousMatrix;
+            DrawCameraFrameGizmo(tableRoot);
+        }
+
+        private int GetGizmoSourceCount(
+            Transform tableRoot,
+            KitchenIngredientCategory category,
+            KitchenIngredientCatalog catalog)
+        {
+            if (tableRoot.childCount > 0)
+            {
+                return tableRoot.childCount;
+            }
+
+            if (catalog == null)
+            {
+                return Mathf.Max(1, itemsPerRow);
+            }
+
+            int count = 0;
+            foreach (KitchenIngredientCatalogItem item in catalog.SourceItems)
+            {
+                if (item.Category == category)
                 {
-                    var b=new Vector3(sourceSpacing.x*(j), 0f, 0f);
-                    Gizmos.DrawWireCube(a +b, sourceLocalScale);
+                    count++;
                 }
-                //camera
-                Gizmos.color = Color.cyan;
-                float height = targetCamera.orthographicSize * 2f;
-                float width = height * targetCamera.aspect;
-                Gizmos.DrawWireCube(asdf[i], new Vector3(width, height, 0f));
             }
+
+            return Mathf.Max(1, count);
+        }
+
+        private KitchenIngredientCatalog TryLoadLocalCatalogForGizmos()
+        {
+            string path = Path.Combine(Application.streamingAssetsPath, ingredientsCsvRelativePath);
+            if (!File.Exists(path))
             {
-                float height = targetCamera.orthographicSize * 2f;
-                float width = height * targetCamera.aspect;
-                Gizmos.DrawWireCube(CompleteTableRoot.position, new Vector3(width, height, 0f));
-                
+                return null;
             }
-            
-            
+
+            try
+            {
+                return KitchenIngredientCatalog.Parse(File.ReadAllText(path));
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private void DrawCameraFrameGizmo(Transform center)
+        {
+            if (center == null || targetCamera == null)
+            {
+                return;
+            }
+
+            Gizmos.color = Color.cyan;
+            float height = targetCamera.orthographicSize * 2f;
+            float width = height * targetCamera.aspect;
+            Gizmos.DrawWireCube(center.position, new Vector3(width, height, 0f));
         }
     }
 }
