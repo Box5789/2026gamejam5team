@@ -151,7 +151,7 @@ namespace KimbapGame.Kitchen
                 return null;
             }
 
-            string id = string.IsNullOrWhiteSpace(BrushId) ? "white-rice" : BrushId;
+            string id = GetRiceBrushId();
             Texture2D brushTexture = !string.IsNullOrWhiteSpace(BrushImagePath) && brushTextureResolver != null
                 ? brushTextureResolver(BrushImagePath)
                 : null;
@@ -167,6 +167,21 @@ namespace KimbapGame.Kitchen
                 MinScale ?? SpreadBrushDefinition.DefaultMinScale,
                 MaxScale ?? SpreadBrushDefinition.DefaultMaxScale,
                 StampSpacing ?? SpreadBrushDefinition.DefaultStampSpacing);
+        }
+
+        private string GetRiceBrushId()
+        {
+            if (!string.IsNullOrWhiteSpace(BrushId))
+            {
+                return BrushId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Id))
+            {
+                return Id;
+            }
+
+            return string.IsNullOrWhiteSpace(DisplayName) ? "rice" : DisplayName;
         }
     }
 }

@@ -57,7 +57,7 @@ namespace KimbapGame.Tests.Kitchen
             Assert.AreEqual("기본 김", seaweed.DisplayName);
             Assert.AreEqual(IngredientType.Seaweed, seaweed.IngredientType);
             Assert.AreEqual(IngredientType.Rice, rice.IngredientType);
-            Assert.AreEqual("white-rice", rice.RiceBrushId);
+            Assert.AreEqual("r16", rice.RiceBrushId);
             Assert.IsNotNull(rice.RiceBrushDefinition);
             Assert.AreEqual(IngredientType.Ham, ham.IngredientType);
             Assert.AreEqual(IngredientType.GenericFilling, cucumber.IngredientType);
@@ -149,7 +149,7 @@ namespace KimbapGame.Tests.Kitchen
             SpreadBrushDefinition brush = rice.RiceBrushDefinition;
 
             Assert.IsNotNull(brush);
-            Assert.AreEqual("white-rice", brush.Id);
+            Assert.AreEqual("r16", brush.Id);
             Assert.IsNull(brush.BrushTexture);
             AssertColor(Color.yellow, brush.Tint);
             Assert.AreEqual(SpreadBrushDefinition.DefaultBrushRadius, brush.BrushRadius);
@@ -158,6 +158,73 @@ namespace KimbapGame.Tests.Kitchen
             Assert.AreEqual(SpreadBrushDefinition.DefaultMinScale, brush.MinScale);
             Assert.AreEqual(SpreadBrushDefinition.DefaultMaxScale, brush.MaxScale);
             Assert.AreEqual(SpreadBrushDefinition.DefaultStampSpacing, brush.StampSpacing);
+        }
+
+        [Test]
+        public void SheetRows_ExplicitRiceBrushIdOverridesIndexFallback()
+        {
+            KitchenIngredientCatalog catalog = KitchenIngredientCatalog.Parse(
+                "Index,이름,분류,브러시ID,브러시이미지,브러시반경,입자수,흩뿌림반경,최소크기,최대크기,스탬프간격\n"
+                + "r18,흑미밥,밥,b18,흑미밥(브러시),0.18,4,0.22,0.75,1.25,0.04\n");
+
+            string requestedPath = string.Empty;
+            KitchenIngredientDefinition rice = catalog.Items[0].ToDefinition(
+                null,
+                Color.yellow,
+                path =>
+                {
+                    requestedPath = path;
+                    return null;
+                });
+            SpreadBrushDefinition brush = rice.RiceBrushDefinition;
+
+            Assert.IsNotNull(brush);
+            Assert.AreEqual("b18", rice.RiceBrushId);
+            Assert.AreEqual("b18", brush.Id);
+            Assert.AreEqual("흑미밥", brush.DisplayName);
+            Assert.AreEqual("흑미밥(브러시)", requestedPath);
+            Assert.IsNull(brush.BrushTexture);
+        }
+
+        [Test]
+        public void SheetRows_ConvertRiceBrushSubSpriteToTexture()
+        {
+            KitchenIngredientCatalog catalog = KitchenIngredientCatalog.Parse(
+                "Index,이름,분류,브러시ID,브러시이미지,브러시반경,입자수,흩뿌림반경,최소크기,최대크기,스탬프간격\n"
+                + "r18,흑미밥,밥,b18,흑미밥(브러시),0.18,4,0.22,0.75,1.25,0.04\n");
+
+            KitchenIngredientDefinition rice = null;
+            Assert.DoesNotThrow(() => rice = catalog.Items[0].ToDefinition(null, Color.yellow));
+            SpreadBrushDefinition brush = rice.RiceBrushDefinition;
+
+            Assert.IsNotNull(brush);
+            Assert.AreEqual("b18", brush.Id);
+            Assert.IsNotNull(brush.BrushTexture);
+        }
+
+        [Test]
+        public void KitchenRiceBrushTextureLoader_LoadsSpriteSheetSubSpriteByName()
+        {
+            Sprite expectedSprite = FindResourceSprite("흑미밥(브러시)");
+            Assert.IsNotNull(expectedSprite, "Test fixture must include 흑미밥(브러시) under Assets/Resources.");
+
+            Texture2D texture = null;
+            Assert.DoesNotThrow(() => texture = KitchenRiceBrushTextureLoader.Load("흑미밥(브러시)"));
+
+            Assert.IsNotNull(texture);
+            Assert.AreEqual(Mathf.RoundToInt(expectedSprite.textureRect.width), texture.width);
+            Assert.AreEqual(Mathf.RoundToInt(expectedSprite.textureRect.height), texture.height);
+            Assert.Less(texture.width, expectedSprite.texture.width);
+            Assert.Less(texture.height, expectedSprite.texture.height);
+        }
+
+        [Test]
+        public void KitchenRiceBrushTextureLoader_LoadsTextureByResourcesPath()
+        {
+            Texture2D texture = KitchenRiceBrushTextureLoader.Load("Kitchen/Brushes/white-rice");
+
+            Assert.IsNotNull(texture);
+            Assert.AreEqual("white-rice", texture.name);
         }
 
         [Test]
@@ -230,6 +297,20 @@ namespace KimbapGame.Tests.Kitchen
             Assert.AreEqual(expected.g, actual.g, 0.0001f);
             Assert.AreEqual(expected.b, actual.b, 0.0001f);
             Assert.AreEqual(expected.a, actual.a, 0.0001f);
+        }
+
+        private static Sprite FindResourceSprite(string spriteName)
+        {
+            Sprite[] sprites = Resources.LoadAll<Sprite>(string.Empty);
+            for (int i = 0; i < sprites.Length; i++)
+            {
+                if (sprites[i] != null && sprites[i].name == spriteName)
+                {
+                    return sprites[i];
+                }
+            }
+
+            return null;
         }
     }
 }

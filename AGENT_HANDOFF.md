@@ -4,6 +4,64 @@
 
 Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, ingredient source rows center themselves from CSV counts, the hand/arm cursor is prefab-backed, `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms, and rolling is a small mouse/touch drag progress script without roll-guide runtime visuals.
 
+## 2026-06-28 Rice Brush ID Fallback Fix
+
+- Fixed rice brush IDs defaulting to `white-rice`.
+  - `KitchenIngredientCatalogItem` now uses explicit sheet/CSV `브러시ID` first.
+  - If `브러시ID` is blank, it falls back to row `Index` such as `r18`.
+  - If both are blank, it falls back to the display name, then `"rice"` as the last resort.
+- Current local `Assets/StreamingAssets/Kitchen/ingredients.csv` already has distinct rice brush IDs:
+  - `흰쌀밥 -> b16`
+  - `현미밥 -> b17`
+  - `흑미밥 -> b18`
+  - and so on through `b25`.
+- Important runtime note:
+  - `KitchenIngredientTablePopulator.Start()` loads `StreamingAssets/Kitchen/ingredients.csv` once and spawns source instances.
+  - If the CSV or Google Sheet is updated while Play Mode is already running, existing spawned source definitions are not automatically refreshed. Restart Play Mode or add an explicit repopulate/debug refresh path in a later task.
+  - `흑미밥(브러시)` is not a Resources texture path, so `Brush Texture` remaining `None` is expected until a real texture exists under `Assets/Resources/...` and the CSV uses a path such as `Kitchen/Brushes/black-rice`.
+- Updated tests:
+  - `KitchenIngredientCatalogTests` now expects blank rice `브러시ID` to fall back to row `Index` instead of `white-rice`.
+  - Added coverage that explicit `브러시ID = b18` for `흑미밥` overrides the fallback and remains `b18` even if its `브러시이미지` is not loadable.
+
+## 2026-06-28 Rice Brush Resources-Wide Image Lookup
+
+- Expanded `KitchenRiceBrushTextureLoader` so `브러시이미지` is not limited to a direct texture path.
+  - Search order is now direct `Texture2D` path, direct `Sprite` path, Resources-wide sprite/sub-sprite name lookup, then Resources-wide `Texture2D` name lookup.
+  - Resources-wide sprite and texture indexes are cached after first use.
+  - Duplicate names warn once and keep the first match.
+- Sprite sheet brush behavior:
+  - `흑미밥(브러시)` is found as a sub-sprite under `Assets/Resources/Kitchen/재료/제목 없음 (7).png`.
+  - The loader crops the sub-sprite `textureRect` into a readable `Texture2D` copy instead of using the whole sheet.
+  - Non-readable source textures still go through the existing RenderTexture copy path before cropping.
+- Updated tests:
+  - `KitchenRiceBrushTextureLoader.Load("흑미밥(브러시)")` returns a non-null texture with the sub-sprite dimensions, not the whole sheet dimensions.
+  - `KitchenRiceBrushTextureLoader.Load("Kitchen/Brushes/white-rice")` still loads the direct texture path.
+  - Catalog conversion for `r18 / 흑미밥 / b18 / 흑미밥(브러시)` now verifies `BrushTexture != null`.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 existing `OrderSceneController` deprecation warnings.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
+## 2026-06-28 Non-Readable Rice Brush Sprite Fix
+
+- Fixed the Unity Console error from `Texture2D.GetPixels32` on `제목 없음 (7)`.
+  - Root cause: `KitchenRiceBrushTextureLoader.IsReadable()` only caught `UnityException`, but Unity threw `ArgumentException` for the non-readable sprite sheet texture.
+  - The readable probe now treats any exception as "not readable" so the RenderTexture copy fallback can run.
+  - If the RenderTexture copy also fails, `EnsureReadable()` returns `null` instead of handing the same non-readable texture to the crop path.
+- Hardened sprite sheet cropping:
+  - `CreateReadableTextureFromSprite()` now exits quietly when a readable source cannot be produced.
+  - Sprite `textureRect` crop coordinates are clamped to the readable texture bounds before `GetPixels`.
+  - `흑미밥(브러시)` remains a sub-sprite crop, not the full `제목 없음 (7)` sheet.
+- Updated tests:
+  - Catalog conversion and direct loader tests for `흑미밥(브러시)` now assert the load path does not throw.
+  - Existing width/height checks still verify that the returned texture matches the sub-sprite dimensions.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 existing `OrderSceneController` deprecation warnings.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
 ## 2026-06-28 Ingredient Source Renderer-Based Pickup
 
 - Changed table source pickup to follow the actual ingredient `SpriteRenderer`.
