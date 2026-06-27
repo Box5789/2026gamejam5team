@@ -96,7 +96,7 @@ namespace KimbapGame.Tests.Kitchen
 
             populator.PopulateFromCsv(BuildSeaweedCsv(11));
 
-            AssertLocalPosition(new Vector3(0f, 2.15f, -0.2f), seaweedRoot.transform.GetChild(10));
+            AssertLocalPosition(new Vector3(0f, 2.575f, -0.2f), seaweedRoot.transform.GetChild(10));
         }
 
         [Test]
@@ -106,11 +106,40 @@ namespace KimbapGame.Tests.Kitchen
 
             populator.PopulateFromCsv(BuildSeaweedCsv(12));
 
-            AssertLocalPosition(new Vector3(-0.55f, 2.15f, -0.2f), seaweedRoot.transform.GetChild(10));
-            AssertLocalPosition(new Vector3(0.55f, 2.15f, -0.2f), seaweedRoot.transform.GetChild(11));
+            AssertLocalPosition(new Vector3(-0.55f, 2.575f, -0.2f), seaweedRoot.transform.GetChild(10));
+            AssertLocalPosition(new Vector3(0.55f, 2.575f, -0.2f), seaweedRoot.transform.GetChild(11));
         }
 
-        private KitchenIngredientTablePopulator CreatePopulator()
+        [Test]
+        public void PopulateFromCsv_UsesCategorySpecificColumnLimits()
+        {
+            KitchenIngredientTablePopulator populator = CreatePopulator(
+                seaweedItemsPerRow: 3,
+                riceItemsPerRow: 2,
+                fillingItemsPerRow: 4);
+
+            populator.PopulateFromCsv(BuildMixedCsv(seaweedCount: 5, riceCount: 5, fillingCount: 5));
+
+            AssertLocalPosition(new Vector3(-0.55f, 2.575f, -0.2f), seaweedRoot.transform.GetChild(3));
+            AssertLocalPosition(new Vector3(0f, 2.15f, -0.2f), riceRoot.transform.GetChild(4));
+            AssertLocalPosition(new Vector3(0f, 2.575f, -0.2f), fillingRoot.transform.GetChild(4));
+        }
+
+        [Test]
+        public void PopulateFromCsv_ClampsCategoryColumnLimitToAtLeastOne()
+        {
+            KitchenIngredientTablePopulator populator = CreatePopulator(seaweedItemsPerRow: -2);
+
+            populator.PopulateFromCsv(BuildSeaweedCsv(2));
+
+            AssertLocalPosition(new Vector3(0f, 3.425f, -0.2f), seaweedRoot.transform.GetChild(0));
+            AssertLocalPosition(new Vector3(0f, 2.575f, -0.2f), seaweedRoot.transform.GetChild(1));
+        }
+
+        private KitchenIngredientTablePopulator CreatePopulator(
+            int seaweedItemsPerRow = 10,
+            int riceItemsPerRow = 10,
+            int fillingItemsPerRow = 10)
         {
             populatorObject = new GameObject("KitchenIngredientTablePopulator");
             sourcePrefabObject = new GameObject("KitchenIngredientSourcePrefab");
@@ -140,7 +169,9 @@ namespace KimbapGame.Tests.Kitchen
             serializedObject.FindProperty("fillingTableRoot").objectReferenceValue = fillingRoot.transform;
             serializedObject.FindProperty("sourceRowCenter").vector3Value = new Vector3(0f, 3f, -0.2f);
             serializedObject.FindProperty("sourceSpacing").vector2Value = new Vector2(1.1f, -0.85f);
-            serializedObject.FindProperty("itemsPerRow").intValue = 10;
+            serializedObject.FindProperty("seaweedItemsPerRow").intValue = seaweedItemsPerRow;
+            serializedObject.FindProperty("riceItemsPerRow").intValue = riceItemsPerRow;
+            serializedObject.FindProperty("fillingItemsPerRow").intValue = fillingItemsPerRow;
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
 
             return populator;
@@ -159,6 +190,30 @@ namespace KimbapGame.Tests.Kitchen
             }
 
             return builder.ToString();
+        }
+
+        private static string BuildMixedCsv(int seaweedCount, int riceCount, int fillingCount)
+        {
+            StringBuilder builder = new StringBuilder("Index,이름,분류,가격,이미지,필수여부\n");
+            AppendRows(builder, "s", "김", "김", seaweedCount);
+            AppendRows(builder, "r", "밥", "밥", riceCount);
+            AppendRows(builder, "f", "속", "속", fillingCount);
+            return builder.ToString();
+        }
+
+        private static void AppendRows(StringBuilder builder, string idPrefix, string namePrefix, string category, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                builder.Append(idPrefix);
+                builder.Append(i);
+                builder.Append(',');
+                builder.Append(namePrefix);
+                builder.Append(i);
+                builder.Append(',');
+                builder.Append(category);
+                builder.Append(",,,\n");
+            }
         }
 
         private static void AssertObjectReference(Object target, string propertyPath)

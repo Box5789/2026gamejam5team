@@ -4,6 +4,26 @@
 
 Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, ingredient source rows center themselves from CSV counts, the hand/arm cursor is prefab-backed, and `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms instead of duplicated spacing/count numbers.
 
+## 2026-06-27 Kitchen Ingredient Category Column Limits
+
+- Split `KitchenIngredientTablePopulator` source row limits by ingredient category.
+  - Replaced common `itemsPerRow` with `seaweedItemsPerRow`, `riceItemsPerRow`, and `fillingItemsPerRow`.
+  - Runtime spawning and `OnDrawGizmos` both use the category-specific column count.
+  - Values are clamped to at least 1 column in code; Inspector fields also use `Min(1)`.
+- Updated `Assets/Scenes/kitchen.unity`.
+  - Removed serialized `itemsPerRow`.
+  - Added `seaweedItemsPerRow`, `riceItemsPerRow`, and `fillingItemsPerRow`.
+  - All three were initialized to the current scene value `7`; exact tuning is left to the user in Inspector.
+- Updated tests.
+  - `KitchenIngredientTablePopulatorTests` now checks category-specific column limits, final-row centering per category, and clamp-to-one behavior.
+  - Updated older partial-row expectations to match the current horizontal + vertical centering formula.
+  - `KitchenSceneWiringTests` now verifies the three serialized row-limit fields exist and are positive.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 existing warnings in `OrderSceneController`.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - Static grep confirmed `itemsPerRow` no longer remains in kitchen scripts, `kitchen.unity`, or kitchen EditMode tests.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
 ## 2026-06-27 KitchenHandCursor Root Child Arm Rig
 
 - Refactored `KitchenHandCursor` to the user-confirmed root-child rig:

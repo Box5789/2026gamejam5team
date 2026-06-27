@@ -63,6 +63,9 @@ namespace KimbapGame.Tests.Kitchen
             AssertObjectReference(populator, "seaweedTableRoot");
             AssertObjectReference(populator, "riceTableRoot");
             AssertObjectReference(populator, "fillingTableRoot");
+            AssertPositiveIntValue(populator, "seaweedItemsPerRow");
+            AssertPositiveIntValue(populator, "riceItemsPerRow");
+            AssertPositiveIntValue(populator, "fillingItemsPerRow");
             AssertStringValue(populator, "ingredientsCsvRelativePath", "Kitchen/ingredients.csv");
             AssertPrefabReferencePath(populator, "sourcePrefab", SourcePrefabPath);
             AssertObjectReference(handCursor, "targetCamera");
@@ -90,6 +93,14 @@ namespace KimbapGame.Tests.Kitchen
             SerializedProperty property = serializedObject.FindProperty(propertyPath);
             Assert.IsNotNull(property, $"{target.name}.{propertyPath} is missing.");
             Assert.AreEqual(expected, property.stringValue);
+        }
+
+        private static void AssertPositiveIntValue(Object target, string propertyPath)
+        {
+            SerializedObject serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyPath);
+            Assert.IsNotNull(property, $"{target.name}.{propertyPath} is missing.");
+            Assert.Greater(property.intValue, 0, $"{target.name}.{propertyPath} must be greater than zero.");
         }
 
         private static void AssertPrefabReferencePath(Object target, string propertyPath, string expectedPath)

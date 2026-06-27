@@ -21,7 +21,9 @@ namespace KimbapGame.Kitchen
         [SerializeField] private Transform fillingTableRoot;
         [SerializeField] private Vector3 sourceRowCenter = new Vector3(0f, 2.2f, -0.2f);
         [SerializeField] private Vector2 sourceSpacing = new Vector2(1.05f, -0.85f);
-        [SerializeField] private int itemsPerRow = 6;
+        [SerializeField, Min(1)] private int seaweedItemsPerRow = 6;
+        [SerializeField, Min(1)] private int riceItemsPerRow = 6;
+        [SerializeField, Min(1)] private int fillingItemsPerRow = 6;
         [SerializeField] private Vector3 sourceLocalScale = new Vector3(0.78f, 0.48f, 1f);
         [SerializeField] private Vector2 seaweedDragPreviewSize = new Vector2(2.4f, 1.7f);
         [SerializeField] private Vector2 riceDragPreviewSize = new Vector2(2.8f, 0.28f);
@@ -90,24 +92,28 @@ namespace KimbapGame.Kitchen
                 }
             }
 
-            SpawnSources(seaweedItems, seaweedTableRoot);
-            SpawnSources(riceItems, riceTableRoot);
-            SpawnSources(fillingItems, fillingTableRoot);
+            SpawnSources(seaweedItems, seaweedTableRoot, KitchenIngredientCategory.Seaweed);
+            SpawnSources(riceItems, riceTableRoot, KitchenIngredientCategory.Rice);
+            SpawnSources(fillingItems, fillingTableRoot, KitchenIngredientCategory.Filling);
         }
 
-        private void SpawnSources(IReadOnlyList<KitchenIngredientCatalogItem> items, Transform parent)
+        private void SpawnSources(
+            IReadOnlyList<KitchenIngredientCatalogItem> items,
+            Transform parent,
+            KitchenIngredientCategory category)
         {
+            int columns = GetItemsPerRow(category);
             for (int i = 0; i < items.Count; i++)
             {
-                SpawnSource(items[i], parent, i, items.Count);
+                SpawnSource(items[i], parent, i, items.Count, columns);
             }
         }
 
-        private void SpawnSource(KitchenIngredientCatalogItem item, Transform parent, int index, int totalCount)
+        private void SpawnSource(KitchenIngredientCatalogItem item, Transform parent, int index, int totalCount, int columns)
         {
             KitchenIngredientSource source = Instantiate(sourcePrefab, parent);
             source.name = $"{item.DisplayName} Source";
-            source.transform.localPosition = GetSourceLocalPosition(index, totalCount);
+            source.transform.localPosition = GetSourceLocalPosition(index, totalCount, columns);
             source.transform.localRotation = Quaternion.identity;
             source.transform.localScale = sourceLocalScale;
             source.Configure(
@@ -119,9 +125,9 @@ namespace KimbapGame.Kitchen
             spawnedSources.Add(source);
         }
 
-        private Vector3 GetSourceLocalPosition(int index, int totalCount)
+        private Vector3 GetSourceLocalPosition(int index, int totalCount, int columns)
         {
-            int columns = Mathf.Max(1, itemsPerRow);
+            columns = Mathf.Max(1, columns);
             int row = index / columns;
             int column = index % columns;
             int rowItemCount = Mathf.Min(columns, Mathf.Max(1, totalCount - (row * columns)));
@@ -131,6 +137,21 @@ namespace KimbapGame.Kitchen
             float rowOffset = row - ((rowCount - 1) * 0.5f);
             float y = sourceRowCenter.y + (sourceSpacing.y * rowOffset);
             return new Vector3(x, y, sourceRowCenter.z);
+        }
+
+        private int GetItemsPerRow(KitchenIngredientCategory category)
+        {
+            switch (category)
+            {
+                case KitchenIngredientCategory.Seaweed:
+                    return Mathf.Max(1, seaweedItemsPerRow);
+                case KitchenIngredientCategory.Rice:
+                    return Mathf.Max(1, riceItemsPerRow);
+                case KitchenIngredientCategory.Filling:
+                    return Mathf.Max(1, fillingItemsPerRow);
+                default:
+                    return 1;
+            }
         }
 
         private Vector2 GetDragPreviewSize(KitchenIngredientCategory category)
@@ -231,12 +252,13 @@ namespace KimbapGame.Kitchen
             }
 
             int sourceCount = GetGizmoSourceCount(tableRoot, category, catalog);
+            int columns = GetItemsPerRow(category);
             Matrix4x4 previousMatrix = Gizmos.matrix;
             Gizmos.matrix = tableRoot.localToWorldMatrix;
             Gizmos.color = sourceColor;
             for (int i = 0; i < sourceCount; i++)
             {
-                Gizmos.DrawWireCube(GetSourceLocalPosition(i, sourceCount), sourceLocalScale);
+                Gizmos.DrawWireCube(GetSourceLocalPosition(i, sourceCount, columns), sourceLocalScale);
             }
 
             Gizmos.matrix = previousMatrix;
@@ -255,7 +277,7 @@ namespace KimbapGame.Kitchen
 
             if (catalog == null)
             {
-                return Mathf.Max(1, itemsPerRow);
+                return GetItemsPerRow(category);
             }
 
             int count = 0;
