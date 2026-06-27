@@ -36,6 +36,16 @@ namespace KimbapGame.Order
         [SerializeField]
         private Button confirmButton;
 
+        [Header("Sound")]
+        [SerializeField]
+        private string buttonSoundName = "Order/Sound/버튼";
+        [SerializeField]
+        private string successReactionSoundName = "Order/Sound/손님반응-성공";
+        [SerializeField]
+        private string failReactionSoundName = "Order/Sound/손님반응-실패";
+        [SerializeField]
+        private float soundVolume = 1f;
+
         [Header("Emotion Particles")]
         [SerializeField]
         private string successStarImageName = "Order/별_0";
@@ -66,12 +76,14 @@ namespace KimbapGame.Order
         private int currentOrderIndex = -1;
         private readonly List<GameObject> emotionParticleObjects = new List<GameObject>();
         private Coroutine emotionParticleRoutine;
+        private AudioSource orderAudioSource;
 
         private void Awake()
         {
             loader = GetComponent<GoogleSheetOrderLoader>();
             loader.CsvUrl = sheetCsvUrl;
             AutoBindMissingReferences();
+            EnsureAudioSource();
         }
 
         private void OnEnable()
@@ -130,6 +142,7 @@ namespace KimbapGame.Order
 
         public void RefuseCurrentOrder()
         {
+            PlayButtonSound();
             if (orders.Count == 0)
             {
                 SetConversation(emptyMessage);
@@ -141,6 +154,7 @@ namespace KimbapGame.Order
 
         public void ShowHint()
         {
+            PlayButtonSound();
             if (currentOrder == null)
             {
                 return;
@@ -175,12 +189,14 @@ namespace KimbapGame.Order
             string fallbackImageName = result.isSuccess ? "Order/사람_성공_10" : "Order/사람_실패_10";
             SetPersonImage(result.responseImageName, fallbackImageName);
             PlayEmotionParticles(result.isSuccess);
+            PlayCustomerReactionSound(result.isSuccess);
 
             SetEvaluationMode(true);
         }
 
         public void GoToKitchen()
         {
+            PlayButtonSound();
             if (currentOrder == null)
             {
                 return;
@@ -359,11 +375,55 @@ namespace KimbapGame.Order
 
         private void ConfirmEvaluationResult()
         {
+            PlayButtonSound();
             ClearEmotionParticles();
             SharedOrderContext.Clear();
             ShowNextOrder();
         }
 
+        private void PlayButtonSound()
+        {
+            PlaySound(buttonSoundName);
+        }
+
+        private void PlayCustomerReactionSound(bool isSuccess)
+        {
+            PlaySound(isSuccess ? successReactionSoundName : failReactionSoundName);
+        }
+
+        private void PlaySound(string resourcePath)
+        {
+            if (string.IsNullOrWhiteSpace(resourcePath))
+            {
+                return;
+            }
+
+            EnsureAudioSource();
+            AudioClip clip = Resources.Load<AudioClip>(resourcePath.Trim());
+            if (clip == null)
+            {
+                Debug.LogWarning($"Order sound clip not found in Resources: {resourcePath}");
+                return;
+            }
+
+            orderAudioSource.PlayOneShot(clip, soundVolume);
+        }
+
+        private void EnsureAudioSource()
+        {
+            if (orderAudioSource != null)
+            {
+                return;
+            }
+
+            orderAudioSource = GetComponent<AudioSource>();
+            if (orderAudioSource == null)
+            {
+                orderAudioSource = gameObject.AddComponent<AudioSource>();
+            }
+
+            orderAudioSource.playOnAwake = false;
+        }
         private void PlayEmotionParticles(bool isSuccess)
         {
             ClearEmotionParticles();
