@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using KimbapGame.Order;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,7 +15,7 @@ namespace KimbapGame.Kitchen
         [SerializeField] private KitchenController controller;
         [SerializeField] private Camera targetCamera;
         [SerializeField] private Button completeButton;
-        [SerializeField] private Button submitButton;
+        [SerializeField] private KitchenReturnNavigator returnNavigator;
         [SerializeField, Range(0.01f, 1f)] private float dragStartBottomRatio = 0.25f;
         [SerializeField, Min(0.01f)] private float dragDistanceToFullRoll = 2f;
         [SerializeField, Min(0f)] private float unrollSpeed = 1f;
@@ -152,14 +153,15 @@ namespace KimbapGame.Kitchen
                 return;
             }
 
-            if (controller != null)
+            if (controller == null)
             {
-                controller.CompleteAndSave();
+                return;
             }
 
-            if (submitButton != null)
+            controller.CompleteAndSave();
+            if (returnNavigator != null)
             {
-                submitButton.gameObject.SetActive(true);
+                returnNavigator.ReturnToOrderScene();
             }
         }
 

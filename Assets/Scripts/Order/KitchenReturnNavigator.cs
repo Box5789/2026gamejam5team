@@ -36,7 +36,7 @@ namespace KimbapGame.Order
             }
         }
 
-        public void ReturnToOrderScene()
+        public virtual void ReturnToOrderScene()
         {
             string sceneName = string.IsNullOrWhiteSpace(SharedOrderContext.ReturnSceneName)
                 ? fallbackOrderSceneName

@@ -4,6 +4,20 @@
 
 Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, ingredient source rows center themselves from CSV counts, the hand/arm cursor is prefab-backed, `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms, and rolling is a small mouse/touch drag progress script without roll-guide runtime visuals.
 
+## 2026-06-28 CompleteButton Immediate Order Return
+
+- Changed the completed-roll flow back to one button press.
+  - `KitchenRollAnimator` now owns a serialized `KitchenReturnNavigator returnNavigator` reference.
+  - `CompleteButton` click now runs `FinalizeRoll()`, calls `KitchenController.CompleteAndSave()`, then calls `returnNavigator.ReturnToOrderScene()`.
+  - The old `submitButton.gameObject.SetActive(true)` flow is no longer used.
+- Scene wiring:
+  - `Assets/Scenes/kitchen.unity` connects `KitchenRollAnimator.returnNavigator` to the existing `KitchenReturnNavigator` component on the inactive legacy `SubmitButton`.
+  - `SubmitButton` remains in the scene for later UI cleanup, but it is no longer required for the player to return to `order`.
+- Test notes:
+  - `KitchenReturnNavigator.ReturnToOrderScene()` is now virtual so EditMode tests can override it without loading scenes.
+  - `KitchenRollAnimatorTests` covers ready complete-click save/return and below-threshold no-save/no-return.
+  - `KitchenSceneWiringTests` now requires `returnNavigator` instead of `submitButton`.
+
 ## 2026-06-28 Rice Brush ID Fallback Fix
 
 - Fixed rice brush IDs defaulting to `white-rice`.

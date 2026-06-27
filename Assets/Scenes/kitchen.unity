@@ -1236,7 +1236,7 @@ MonoBehaviour:
   controller: {fileID: 130002}
   targetCamera: {fileID: 100002}
   completeButton: {fileID: 155203}
-  submitButton: {fileID: 155303}
+  returnNavigator: {fileID: 155304}
   dragStartBottomRatio: 0.25
   dragDistanceToFullRoll: 2
   unrollSpeed: 1

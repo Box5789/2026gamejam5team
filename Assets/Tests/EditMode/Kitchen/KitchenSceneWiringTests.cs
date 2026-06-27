@@ -54,7 +54,7 @@ namespace KimbapGame.Tests.Kitchen
             AssertObjectReference(rollAnimator, "controller");
             AssertObjectReference(rollAnimator, "targetCamera");
             AssertObjectReference(rollAnimator, "completeButton");
-            AssertObjectReference(rollAnimator, "submitButton");
+            AssertObjectReference(rollAnimator, "returnNavigator");
             AssertObjectReference(populator, "dragPreviewPrefab");
             AssertObjectReference(populator, "controller");
             AssertObjectReference(populator, "dropZone");

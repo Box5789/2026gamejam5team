@@ -1,8 +1,10 @@
 using GameJam.Gameplay.Spreading;
 using KimbapGame.Data;
 using KimbapGame.Kitchen;
+using KimbapGame.Order;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace KimbapGame.Tests.Kitchen
 {
@@ -18,6 +20,7 @@ namespace KimbapGame.Tests.Kitchen
         [SetUp]
         public void SetUp()
         {
+            SharedOrderContext.Clear();
             rootObject = new GameObject("KitchenRollAnimatorTestsRoot");
             controllerObject = new GameObject("KitchenController");
             controller = controllerObject.AddComponent<KitchenController>();
@@ -43,6 +46,7 @@ namespace KimbapGame.Tests.Kitchen
             Object.DestroyImmediate(controllerObject);
             Object.DestroyImmediate(cameraObject);
             Object.DestroyImmediate(riceSurfacePrefab);
+            SharedOrderContext.Clear();
         }
 
         [Test]
@@ -285,6 +289,43 @@ namespace KimbapGame.Tests.Kitchen
             Assert.Greater(cover.CoverRenderer.sortingOrder, MaxRendererSortingOrder(egg.transform));
         }
 
+        [Test]
+        public void CompleteButtonClick_WhenReady_SavesAndReturnsToOrderScene()
+        {
+            GameObject seaweed = CreateSprite("Seaweed", Vector3.zero, new Vector2(3f, 3f), Color.green);
+            KitchenRollAnimator animator = CreateConfiguredAnimator();
+            Button completeButton = CreateButton("CompleteButton");
+            TestKitchenReturnNavigator returnNavigator = CreateReturnNavigator();
+            WireCompleteFlow(animator, completeButton, returnNavigator);
+
+            controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed), seaweed);
+            animator.SetRollProgressForTests(1f);
+
+            completeButton.onClick.Invoke();
+
+            Assert.IsTrue(SharedOrderContext.HasPendingEvaluation);
+            Assert.AreEqual(1, returnNavigator.ReturnCallCount);
+            Assert.IsFalse(controller.CurrentRiceSurface.gameObject.activeSelf);
+        }
+
+        [Test]
+        public void CompleteButtonClick_WhenNotReady_DoesNotSaveOrReturn()
+        {
+            GameObject seaweed = CreateSprite("Seaweed", Vector3.zero, new Vector2(3f, 3f), Color.green);
+            KitchenRollAnimator animator = CreateConfiguredAnimator();
+            Button completeButton = CreateButton("CompleteButton");
+            TestKitchenReturnNavigator returnNavigator = CreateReturnNavigator();
+            WireCompleteFlow(animator, completeButton, returnNavigator);
+
+            controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed), seaweed);
+            animator.SetRollProgressForTests(0.5f);
+
+            completeButton.onClick.Invoke();
+
+            Assert.IsFalse(SharedOrderContext.HasPendingEvaluation);
+            Assert.AreEqual(0, returnNavigator.ReturnCallCount);
+        }
+
         private KitchenRollAnimator CreateConfiguredAnimator()
         {
             KitchenRollAnimator animator = rootObject.AddComponent<KitchenRollAnimator>();
@@ -292,6 +333,31 @@ namespace KimbapGame.Tests.Kitchen
             animator.ConfigureTuningForTests(0.25f, 2f, 1f, 0.95f, 0.5f);
             SetPrivateField(animator, "targetCamera", targetCamera);
             return animator;
+        }
+
+        private Button CreateButton(string objectName)
+        {
+            GameObject buttonObject = new GameObject(objectName);
+            buttonObject.transform.SetParent(rootObject.transform, false);
+            return buttonObject.AddComponent<Button>();
+        }
+
+        private TestKitchenReturnNavigator CreateReturnNavigator()
+        {
+            GameObject navigatorObject = new GameObject("KitchenReturnNavigator");
+            navigatorObject.transform.SetParent(rootObject.transform, false);
+            return navigatorObject.AddComponent<TestKitchenReturnNavigator>();
+        }
+
+        private static void WireCompleteFlow(
+            KitchenRollAnimator animator,
+            Button completeButton,
+            KitchenReturnNavigator returnNavigator)
+        {
+            animator.enabled = false;
+            SetPrivateField(animator, "completeButton", completeButton);
+            SetPrivateField(animator, "returnNavigator", returnNavigator);
+            animator.enabled = true;
         }
 
         private Vector2 WorldToScreen(Vector3 worldPosition)
@@ -404,6 +470,16 @@ namespace KimbapGame.Tests.Kitchen
                 ingredientType,
                 category,
                 Color.white);
+        }
+
+        private sealed class TestKitchenReturnNavigator : KitchenReturnNavigator
+        {
+            public int ReturnCallCount { get; private set; }
+
+            public override void ReturnToOrderScene()
+            {
+                ReturnCallCount++;
+            }
         }
     }
 }
