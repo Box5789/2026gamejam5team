@@ -956,6 +956,7 @@ GameObject:
   - component: {fileID: 143003}
   - component: {fileID: 143005}
   - component: {fileID: 143004}
+  - component: {fileID: 143006}
   m_Layer: 0
   m_Name: KitchenDropZone
   m_TagString: Untagged
@@ -1085,6 +1086,20 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
+--- !u!114 &143006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 143000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f176b2fd5f59f494e98647102ebaddc8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mouseThrow: {fileID: 143004}
+  pickupCollider: {fileID: 143003}
 --- !u!1 &150000
 GameObject:
   m_ObjectHideFlags: 0
