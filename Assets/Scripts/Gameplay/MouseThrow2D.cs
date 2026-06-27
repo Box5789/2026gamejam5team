@@ -8,15 +8,13 @@ namespace KimbapGame.Gameplay
     public sealed class MouseThrow2D : MonoBehaviour
     {
         [SerializeField] private Camera targetCamera;
-        [SerializeField] private float throwPower = 1f;
-        [SerializeField] private float maxThrowSpeed = 25f;
+        [SerializeField] private float dragForce = 120f;
+        [SerializeField] private float dragDamping = 12f;
+        [SerializeField] private float maxForce = 1500f;
 
         private Rigidbody2D body;
-        private Vector2 grabOffset;
-        private Vector2 targetPosition;
-        private Vector2 dragVelocity;
-        private float lastSampleTime;
-        private float originalGravityScale;
+        private Vector2 grabLocalPoint;
+        private Vector2 mouseWorldPosition;
         private bool dragging;
 
         private void Awake()
@@ -31,22 +29,14 @@ namespace KimbapGame.Gameplay
 
         private void OnMouseDown()
         {
-            if (targetCamera == null)
+            if (!EnsureCamera())
             {
                 return;
             }
 
             dragging = true;
-            originalGravityScale = body.gravityScale;
-            body.gravityScale = 0f;
-            body.linearVelocity = Vector2.zero;
-            body.angularVelocity = 0f;
-
-            Vector2 mouseWorld = GetMouseWorldPosition();
-            grabOffset = body.position - mouseWorld;
-            targetPosition = mouseWorld + grabOffset;
-            dragVelocity = Vector2.zero;
-            lastSampleTime = Time.time;
+            mouseWorldPosition = GetMouseWorldPosition();
+            grabLocalPoint = transform.InverseTransformPoint(mouseWorldPosition);
         }
 
         private void Update()
@@ -56,42 +46,37 @@ namespace KimbapGame.Gameplay
                 return;
             }
 
-            Vector2 nextPosition = GetMouseWorldPosition() + grabOffset;
-            float dt = Mathf.Max(Time.time - lastSampleTime, Time.deltaTime);
-            dt = Mathf.Max(dt, 0.0001f);
-
-            dragVelocity = (nextPosition - targetPosition) / dt;
-            targetPosition = nextPosition;
-            lastSampleTime = Time.time;
-
             if (Input.GetMouseButtonUp(0))
             {
-                Release();
+                dragging = false;
+                return;
             }
+
+            mouseWorldPosition = GetMouseWorldPosition();
         }
 
         private void FixedUpdate()
         {
             if (dragging)
             {
-                body.MovePosition(targetPosition);
+                ApplyDragForce();
             }
         }
 
         private void OnDisable()
         {
-            if (dragging && body != null)
-            {
-                body.gravityScale = originalGravityScale;
-                dragging = false;
-            }
+            dragging = false;
         }
 
-        private void Release()
+        private void ApplyDragForce()
         {
-            dragging = false;
-            body.gravityScale = originalGravityScale;
-            body.linearVelocity = Vector2.ClampMagnitude(dragVelocity * throwPower, maxThrowSpeed);
+            Vector2 grabWorld = transform.TransformPoint(grabLocalPoint);
+            Vector2 pointVelocity = body.GetPointVelocity(grabWorld);
+            Vector2 force = (mouseWorldPosition - grabWorld) * Mathf.Max(0f, dragForce);
+            force -= pointVelocity * Mathf.Max(0f, dragDamping);
+            force = Vector2.ClampMagnitude(force, Mathf.Max(0f, maxForce));
+
+            body.AddForceAtPosition(force, grabWorld, ForceMode2D.Force);
         }
 
         private Vector2 GetMouseWorldPosition()
@@ -99,6 +84,16 @@ namespace KimbapGame.Gameplay
             Vector3 screenPosition = Input.mousePosition;
             screenPosition.z = Mathf.Abs(targetCamera.transform.position.z - transform.position.z);
             return targetCamera.ScreenToWorldPoint(screenPosition);
+        }
+
+        private bool EnsureCamera()
+        {
+            if (targetCamera == null)
+            {
+                targetCamera = Camera.main;
+            }
+
+            return targetCamera != null;
         }
     }
 }

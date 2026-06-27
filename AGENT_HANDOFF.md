@@ -28,27 +28,36 @@ Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice 
 - Added a small reusable `MouseThrow2D` component under `Assets/Scripts/Gameplay/`.
   - Intended use: attach it to any object that already has `Rigidbody2D` and `Collider2D`.
   - Uses the project’s existing old Input style: `OnMouseDown`, `Input.mousePosition`, and `Input.GetMouseButtonUp(0)`.
-  - While dragging, gravity is temporarily disabled and the body follows the cursor through `Rigidbody2D.MovePosition()`.
-  - On release, the last cursor velocity is applied to `Rigidbody2D.linearVelocity`, clamped by `maxThrowSpeed`.
+  - While dragging, the clicked local point is pulled toward the mouse with `Rigidbody2D.AddForceAtPosition()`.
+  - On release, the component stops applying force and leaves the body's current linear/angular velocity untouched, so the object flies from the simulated physics state.
+  - `SpringJoint2D` is intentionally not used here because this helper represents a free throwable body, not a fixed-anchor spring object.
+- Tuning:
+  - `dragForce` controls how strongly the grabbed point follows the cursor.
+  - `dragDamping` damps the grabbed point's current velocity.
+  - `maxForce` clamps extreme cursor pulls.
 - Scope:
   - Mouse-only helper for quick 2D physics interactions.
-  - Touch support, new Input System actions, joints, and scene wiring are intentionally out of scope.
+  - Touch support, new Input System actions, fixed anchors, and scene wiring are intentionally out of scope.
 
 ## 2026-06-28 Rigidbody2D Mouse Spring Return Helper
 
 - Added a small reusable `MouseSpringReturn2D` component under `Assets/Scripts/Gameplay/`.
   - Intended use: attach it to any object that already has `Rigidbody2D` and `Collider2D`.
   - Uses one local fixed point, `anchorLocalPoint`, as the red point shown in the sketch.
-  - At Play start, the component stores that anchor's world position and treats it as a fixed pivot.
-  - During mouse drag, the cursor direction changes the target angle instead of applying force at the clicked point.
-  - On release, the body springs back to its rest angle while keeping the anchor fixed.
-  - No runtime joint, extra anchor GameObject, or generated scene object is required.
+  - At Play start, the component stores the world position of `anchorLocalPoint` and configures a `HingeJoint2D` to pin that local point to the fixed world pivot.
+  - During mouse drag, a `TargetJoint2D` pulls the clicked local point toward the cursor.
+  - On release, only the target joint turns off; the hinge joint motor rotates the body back toward its start angle around the pinned local anchor.
+  - No extra anchor GameObject is required.
 - Tuning:
-  - `angleSpring` / `angleDamping` control the return bounce.
-  - `dragFollowSpeed` controls how quickly the drag target angle follows the cursor.
-  - `maxDragAngle` limits over-rotation around the rest angle.
+  - `returnMotorSpeed`, `returnMotorDamping`, and `returnMaxMotorTorque` control the angle return around the anchor.
+  - `dragFrequency`, `dragDampingRatio`, and `dragMaxForce` control how the mouse pull feels.
 - Implementation note:
-  - The first force-based version used `AddForceAtPosition()` at both the anchor and drag point. With the current tall test object in `order.unity`, that created a large lever arm and caused immediate spinning. The helper now uses `MovePosition()` / `MoveRotation()` and zeroes physics velocity each fixed step.
+  - The first force-based version used `AddForceAtPosition()` at both the anchor and drag point. With the current tall test object in `order.unity`, that created a large lever arm and caused immediate spinning.
+  - A later single-`SpringJoint2D` version returned one point but could not guarantee rotation recovery.
+  - A `RelativeJoint2D` version recovered body pose but did not use `anchorLocalPoint` as the rotation pivot. The current version uses Unity's built-in `HingeJoint2D` for the local-anchor pivot and `TargetJoint2D` for mouse dragging.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 existing `OrderSceneController` deprecation warnings.
+  - Static grep confirmed `MouseSpringReturn2D.cs` no longer contains `RelativeJoint2D`, `SpringJoint2D`, `MovePosition`, `MoveRotation`, or direct velocity assignment.
 
 ## 2026-06-28 CompleteButton Immediate Order Return
 
