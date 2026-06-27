@@ -8,6 +8,7 @@ namespace KimbapGame.Data
         public static CurrentOrder CurrentOrder { get; private set; }
         public static SheetOrderData CurrentSheetOrder { get; private set; }
         public static KimbapEvaluationResult PendingEvaluationResult { get; private set; }
+        public static string CurrentOrderImageName { get; private set; } = string.Empty;
         public static string ReturnSceneName { get; set; } = "order";
 
         public static bool HasOrder => CurrentOrder != null && CurrentOrder.order != null;
@@ -15,7 +16,7 @@ namespace KimbapGame.Data
 
         public static event Action<CurrentOrder> CurrentOrderChanged;
 
-        public static void SetCurrentOrder(OrderData orderData, SheetOrderData sheetOrderData = null)
+        public static void SetCurrentOrder(OrderData orderData, SheetOrderData sheetOrderData = null, string orderImageName = "")
         {
             CurrentOrder = new CurrentOrder
             {
@@ -23,8 +24,16 @@ namespace KimbapGame.Data
                 isCompleted = false
             };
             CurrentSheetOrder = sheetOrderData;
+            CurrentOrderImageName = !string.IsNullOrWhiteSpace(orderImageName)
+                ? orderImageName
+                : sheetOrderData == null ? string.Empty : sheetOrderData.orderImageName;
             PendingEvaluationResult = null;
             CurrentOrderChanged?.Invoke(CurrentOrder);
+        }
+
+        public static void SetCurrentOrderImageName(string imageName)
+        {
+            CurrentOrderImageName = imageName ?? string.Empty;
         }
 
         public static void SetEvaluationResult(KimbapEvaluationResult result)
@@ -52,6 +61,7 @@ namespace KimbapGame.Data
         {
             CurrentOrder = null;
             CurrentSheetOrder = null;
+            CurrentOrderImageName = string.Empty;
             PendingEvaluationResult = null;
             CurrentOrderChanged?.Invoke(null);
         }
