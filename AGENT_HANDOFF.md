@@ -735,3 +735,31 @@ Planned data flow:
 5. Close the Unity Editor and run EditMode tests from the Test Runner, or rerun batchmode tests.
 6. Connect future UI brush buttons to `SelectBrush(int)` or `SelectBrush(string)`.
 7. Decide whether to connect shared rice coverage completion to future order/recipe scoring.
+
+## 2026-06-28 - Filling Drag Preview Sprite Split
+
+Current goal:
+
+- Use the `브러시이미지` sheet column for filling drag preview / dropped filling visuals while keeping table source visuals on the `이미지` column.
+
+Decisions / contract:
+
+- `KitchenIngredientDefinition.VisualSprite` remains the table source sprite.
+- `KitchenIngredientDefinition.DragPreviewSprite` is optional and currently populated only for `KitchenIngredientCategory.Filling` rows with a non-empty `브러시이미지`.
+- `KitchenIngredientSource` applies `DragPreviewSprite ?? VisualSprite` only to spawned drag previews; source `ingredientRenderer` still uses `VisualSprite`.
+- Because `KitchenDraggableItem` keeps the preview object after a successful drop, dropped fillings also use the `브러시이미지` sprite.
+
+Files changed:
+
+- `Assets/Scripts/Kitchen/KitchenIngredientDefinition.cs`
+- `Assets/Scripts/Kitchen/KitchenIngredientCatalogItem.cs`
+- `Assets/Scripts/Kitchen/KitchenIngredientSource.cs`
+- `Assets/Tests/EditMode/Kitchen/KitchenIngredientCatalogTests.cs`
+- `Assets/Tests/EditMode/Kitchen/KitchenIngredientTablePopulatorTests.cs`
+
+Validation status:
+
+- `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 2 existing `OrderSceneController` obsolete API warnings and 0 errors.
+- Production kitchen grep for `new GameObject`, `AddComponent`, `GameObject.Find`, `FindObjectOfType`, and `KitchenSceneBootstrap` returned no matches.
+- `git diff --check` passed; Git reported LF-to-CRLF working-copy warnings only.
+- Unity Editor processes were open, so batchmode EditMode tests were not run in this pass.

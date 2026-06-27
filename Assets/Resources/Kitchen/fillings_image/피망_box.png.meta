@@ -116,10 +116,10 @@ TextureImporter:
       name: "\uD53C\uB9DD_box_0"
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 1254
-        height: 1254
+        x: 215
+        y: 211
+        width: 816
+        height: 845
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}

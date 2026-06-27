@@ -187,12 +187,15 @@ namespace KimbapGame.Kitchen
 
         private void ApplyPreviewVisuals(GameObject preview)
         {
+            Sprite previewSprite = definition.DragPreviewSprite != null
+                ? definition.DragPreviewSprite
+                : definition.VisualSprite;
             SpriteRenderer[] renderers = preview.GetComponentsInChildren<SpriteRenderer>();
             for (int i = 0; i < renderers.Length; i++)
             {
-                if (definition.VisualSprite != null)
+                if (previewSprite != null)
                 {
-                    renderers[i].sprite = definition.VisualSprite;
+                    renderers[i].sprite = previewSprite;
                     renderers[i].color = Color.white;
                     continue;
                 }

@@ -116,10 +116,10 @@ TextureImporter:
       name: "\uBA85\uB780_box_0"
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 1254
-        height: 1254
+        x: 205
+        y: 182
+        width: 845
+        height: 892
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}

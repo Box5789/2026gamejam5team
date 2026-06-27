@@ -99,6 +99,7 @@ MonoBehaviour:
     category: 0
     placeholderColor: {r: 1, g: 1, b: 1, a: 1}
     visualSprite: {fileID: 0}
+    dragPreviewSprite: {fileID: 0}
     dragPrefab: {fileID: 100000, guid: 62aa0036fb4e0014aa2a1b9e0faf8a6b, type: 3}
     riceBrushId: 
     riceBrushDefinition:

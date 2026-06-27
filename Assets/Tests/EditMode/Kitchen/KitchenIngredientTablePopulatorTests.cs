@@ -225,11 +225,11 @@ namespace KimbapGame.Tests.Kitchen
         public void PopulateFromCsv_AppliesVisualSpriteToSourceRenderer()
         {
             KitchenIngredientTablePopulator populator = CreatePopulator();
-            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("햄_line.png", "햄", "r31");
+            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("햄_box_0", "햄", "r31");
 
             populator.PopulateFromCsv(
-                "Index,이름,분류,가격,이미지,필수여부\n"
-                + "r31,햄,속,,햄_line.png,\n");
+                "Index,이름,분류,가격,이미지,필수여부,브러시ID,브러시이미지\n"
+                + "r31,햄,속,,햄_box_0,,b31,햄_line_0\n");
 
             SpriteRenderer renderer = fillingRoot.transform.GetChild(0).GetComponentInChildren<SpriteRenderer>();
             Assert.IsNotNull(renderer);
@@ -259,16 +259,47 @@ namespace KimbapGame.Tests.Kitchen
         }
 
         [Test]
-        public void SourceClick_AppliesVisualSpriteToDragPreviewRenderer()
+        public void SourceClick_AppliesBrushImageSpriteToFillingDragPreviewRenderer()
         {
             KitchenIngredientTablePopulator populator = CreatePopulator();
-            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("햄_line.png", "햄", "r31");
+            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("햄_line_0", "햄", "r31");
 
             populator.PopulateFromCsv(
-                "Index,이름,분류,가격,이미지,필수여부\n"
-                + "r31,햄,속,,햄_line.png,\n");
+                "Index,이름,분류,가격,이미지,필수여부,브러시ID,브러시이미지\n"
+                + "r31,햄,속,,햄_box_0,,b31,햄_line_0\n");
 
             KitchenIngredientSource source = fillingRoot.transform.GetChild(0).GetComponent<KitchenIngredientSource>();
+            source.SendMessage("OnMouseDown");
+            KitchenDraggableItem preview = FindSpawnedPreview();
+
+            try
+            {
+                Assert.IsNotNull(preview);
+                SpriteRenderer renderer = preview.GetComponent<SpriteRenderer>();
+                Assert.IsNotNull(renderer);
+                Assert.AreSame(expectedSprite, renderer.sprite);
+                AssertColor(Color.white, renderer.color);
+            }
+            finally
+            {
+                if (preview != null)
+                {
+                    Destroy(preview.gameObject);
+                }
+            }
+        }
+
+        [Test]
+        public void SourceClick_ForSeaweedFallsBackToVisualSprite()
+        {
+            KitchenIngredientTablePopulator populator = CreatePopulator();
+            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("Kitchen/floor", "기본 김", "r1");
+
+            populator.PopulateFromCsv(
+                "Index,이름,분류,가격,이미지,필수여부,브러시ID,브러시이미지\n"
+                + "r1,기본 김,김,,Kitchen/floor,,b1,김_line_0\n");
+
+            KitchenIngredientSource source = seaweedRoot.transform.GetChild(0).GetComponent<KitchenIngredientSource>();
             source.SendMessage("OnMouseDown");
             KitchenDraggableItem preview = FindSpawnedPreview();
 

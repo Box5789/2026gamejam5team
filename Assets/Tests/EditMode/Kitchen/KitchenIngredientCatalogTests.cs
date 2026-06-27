@@ -132,6 +132,79 @@ namespace KimbapGame.Tests.Kitchen
         }
 
         [Test]
+        public void SheetRows_ConvertFillingBrushImageColumnToDragPreviewSprite()
+        {
+            Texture2D boxTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            Texture2D lineTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            Sprite boxSprite = Sprite.Create(boxTexture, new Rect(0f, 0f, 1f, 1f), Vector2.one * 0.5f, 1f);
+            Sprite lineSprite = Sprite.Create(lineTexture, new Rect(0f, 0f, 1f, 1f), Vector2.one * 0.5f, 1f);
+            KitchenIngredientCatalog catalog = KitchenIngredientCatalog.Parse(
+                "Index,이름,분류,가격,이미지,필수여부,브러시ID,브러시이미지\n"
+                + "r31,햄,속,,햄_box_0,,b31,햄_line_0\n");
+
+            try
+            {
+                KitchenIngredientDefinition definition = catalog.Items[0].ToDefinition(
+                    null,
+                    Color.red,
+                    path => null,
+                    (imageName, displayName, variantId) =>
+                    {
+                        Assert.AreEqual("햄", displayName);
+                        Assert.AreEqual("r31", variantId);
+                        if (imageName == "햄_box_0")
+                        {
+                            return boxSprite;
+                        }
+
+                        if (imageName == "햄_line_0")
+                        {
+                            return lineSprite;
+                        }
+
+                        return null;
+                    });
+
+                Assert.AreSame(boxSprite, definition.VisualSprite);
+                Assert.AreSame(lineSprite, definition.DragPreviewSprite);
+            }
+            finally
+            {
+                Object.DestroyImmediate(boxSprite);
+                Object.DestroyImmediate(lineSprite);
+                Object.DestroyImmediate(boxTexture);
+                Object.DestroyImmediate(lineTexture);
+            }
+        }
+
+        [Test]
+        public void SheetRows_BlankFillingBrushImageLeavesDragPreviewSpriteNull()
+        {
+            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), Vector2.one * 0.5f, 1f);
+            KitchenIngredientCatalog catalog = KitchenIngredientCatalog.Parse(
+                "Index,이름,분류,가격,이미지,필수여부,브러시ID,브러시이미지\n"
+                + "r31,햄,속,,햄_box_0,,b31,\n");
+
+            try
+            {
+                KitchenIngredientDefinition definition = catalog.Items[0].ToDefinition(
+                    null,
+                    Color.red,
+                    path => null,
+                    (imageName, displayName, variantId) => imageName == "햄_box_0" ? sprite : null);
+
+                Assert.AreSame(sprite, definition.VisualSprite);
+                Assert.IsNull(definition.DragPreviewSprite);
+            }
+            finally
+            {
+                Object.DestroyImmediate(sprite);
+                Object.DestroyImmediate(texture);
+            }
+        }
+
+        [Test]
         public void SheetRows_BlankRiceBrushColumnsUseBrushDefaults()
         {
             KitchenIngredientCatalog catalog = KitchenIngredientCatalog.Parse(

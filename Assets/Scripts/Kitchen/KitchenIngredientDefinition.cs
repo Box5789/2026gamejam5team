@@ -14,6 +14,7 @@ namespace KimbapGame.Kitchen
         [SerializeField] private KitchenIngredientCategory category;
         [SerializeField] private Color placeholderColor = Color.white;
         [SerializeField] private Sprite visualSprite;
+        [SerializeField] private Sprite dragPreviewSprite;
         [SerializeField] private GameObject dragPrefab;
         [SerializeField] private string riceBrushId;
         [SerializeField] private SpreadBrushDefinition riceBrushDefinition;
@@ -29,6 +30,8 @@ namespace KimbapGame.Kitchen
         public Color PlaceholderColor => placeholderColor;
 
         public Sprite VisualSprite => visualSprite;
+
+        public Sprite DragPreviewSprite => dragPreviewSprite;
 
         public GameObject DragPrefab => dragPrefab;
 
@@ -93,6 +96,31 @@ namespace KimbapGame.Kitchen
             Sprite visualSprite,
             string riceBrushId,
             SpreadBrushDefinition riceBrushDefinition)
+            : this(
+                variantId,
+                displayName,
+                ingredientType,
+                category,
+                placeholderColor,
+                dragPrefab,
+                visualSprite,
+                null,
+                riceBrushId,
+                riceBrushDefinition)
+        {
+        }
+
+        public KitchenIngredientDefinition(
+            string variantId,
+            string displayName,
+            IngredientType ingredientType,
+            KitchenIngredientCategory category,
+            Color placeholderColor,
+            GameObject dragPrefab,
+            Sprite visualSprite,
+            Sprite dragPreviewSprite,
+            string riceBrushId,
+            SpreadBrushDefinition riceBrushDefinition)
         {
             this.variantId = variantId;
             this.displayName = displayName;
@@ -100,6 +128,7 @@ namespace KimbapGame.Kitchen
             this.category = category;
             this.placeholderColor = placeholderColor;
             this.visualSprite = visualSprite;
+            this.dragPreviewSprite = dragPreviewSprite;
             this.dragPrefab = dragPrefab;
             this.riceBrushId = riceBrushId;
             this.riceBrushDefinition = riceBrushDefinition;

@@ -119,6 +119,7 @@ namespace KimbapGame.Kitchen
             IngredientType ingredientType = IngredientTypeMapper.ToIngredientType(DisplayName, GetFallbackIngredientType());
             SpreadBrushDefinition riceBrushDefinition = CreateRiceBrushDefinition(placeholderColor, brushTextureResolver);
             Sprite visualSprite = visualSpriteResolver == null ? null : visualSpriteResolver(ImageName, DisplayName, Id);
+            Sprite dragPreviewSprite = CreateDragPreviewSprite(visualSpriteResolver);
             return new KitchenIngredientDefinition(
                 Id,
                 DisplayName,
@@ -127,6 +128,7 @@ namespace KimbapGame.Kitchen
                 placeholderColor,
                 dragPrefab,
                 visualSprite,
+                dragPreviewSprite,
                 riceBrushDefinition == null ? string.Empty : riceBrushDefinition.Id,
                 riceBrushDefinition);
         }
@@ -167,6 +169,18 @@ namespace KimbapGame.Kitchen
                 MinScale ?? SpreadBrushDefinition.DefaultMinScale,
                 MaxScale ?? SpreadBrushDefinition.DefaultMaxScale,
                 StampSpacing ?? SpreadBrushDefinition.DefaultStampSpacing);
+        }
+
+        private Sprite CreateDragPreviewSprite(Func<string, string, string, Sprite> visualSpriteResolver)
+        {
+            if (Category != KitchenIngredientCategory.Filling
+                || visualSpriteResolver == null
+                || string.IsNullOrWhiteSpace(BrushImagePath))
+            {
+                return null;
+            }
+
+            return visualSpriteResolver(BrushImagePath, DisplayName, Id);
         }
 
         private string GetRiceBrushId()
