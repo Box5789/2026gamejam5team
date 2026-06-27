@@ -17,6 +17,8 @@ namespace KimbapGame.Gameplay
         private Vector2 mouseWorldPosition;
         private bool dragging;
 
+        public bool IsDragging => dragging;
+
         private void Awake()
         {
             body = GetComponent<Rigidbody2D>();
@@ -29,14 +31,25 @@ namespace KimbapGame.Gameplay
 
         private void OnMouseDown()
         {
+            BeginDragFromCurrentMouse();
+        }
+
+        public bool BeginDragFromCurrentMouse()
+        {
             if (!EnsureCamera())
             {
-                return;
+                return false;
+            }
+
+            if (body == null)
+            {
+                body = GetComponent<Rigidbody2D>();
             }
 
             dragging = true;
             mouseWorldPosition = GetMouseWorldPosition();
             grabLocalPoint = transform.InverseTransformPoint(mouseWorldPosition);
+            return true;
         }
 
         private void Update()

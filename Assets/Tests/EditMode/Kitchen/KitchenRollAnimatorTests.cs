@@ -1,5 +1,6 @@
 using GameJam.Gameplay.Spreading;
 using KimbapGame.Data;
+using KimbapGame.Gameplay;
 using KimbapGame.Kitchen;
 using KimbapGame.Order;
 using NUnit.Framework;
@@ -268,6 +269,69 @@ namespace KimbapGame.Tests.Kitchen
         }
 
         [Test]
+        public void SetRollProgress_BelowCompletionThreshold_DoesNotPrepareThrowableDropZone()
+        {
+            GameObject seaweed = CreateSprite("Seaweed", Vector3.zero, new Vector2(3f, 3f), Color.green);
+            GameObject dropZoneObject = CreateThrowableDropZone(out KitchenDropZone dropZone, out BoxCollider2D pickupCollider, out Rigidbody2D body, out MouseThrow2D mouseThrow);
+            KitchenRollAnimator animator = CreateConfiguredAnimator();
+            controller.ConfigureSceneReferences(dropZone, null);
+            controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed), seaweed);
+
+            try
+            {
+                pickupCollider.enabled = false;
+                body.bodyType = RigidbodyType2D.Kinematic;
+                mouseThrow.enabled = false;
+
+                animator.SetRollProgressForTests(0.5f);
+
+                Assert.IsFalse(dropZone.IsThrowableRollPrepared);
+                Assert.IsFalse(pickupCollider.enabled);
+                Assert.AreEqual(RigidbodyType2D.Kinematic, body.bodyType);
+                Assert.IsFalse(mouseThrow.enabled);
+            }
+            finally
+            {
+                Object.DestroyImmediate(dropZoneObject);
+            }
+        }
+
+        [Test]
+        public void SetRollProgress_AtCompletionThreshold_PreparesThrowableDropZoneOnce()
+        {
+            GameObject seaweed = CreateSprite("Seaweed", Vector3.zero, new Vector2(3f, 3f), Color.green);
+            GameObject dropZoneObject = CreateThrowableDropZone(out KitchenDropZone dropZone, out BoxCollider2D pickupCollider, out Rigidbody2D body, out MouseThrow2D mouseThrow);
+            KitchenRollAnimator animator = CreateConfiguredAnimator();
+            controller.ConfigureSceneReferences(dropZone, null);
+            controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed), seaweed);
+
+            try
+            {
+                pickupCollider.enabled = false;
+                body.bodyType = RigidbodyType2D.Dynamic;
+                mouseThrow.enabled = true;
+
+                animator.SetRollProgressForTests(0.96f);
+
+                Assert.IsTrue(dropZone.IsThrowableRollPrepared);
+                Assert.IsTrue(pickupCollider.enabled);
+                Assert.AreEqual(RigidbodyType2D.Kinematic, body.bodyType);
+                Assert.IsFalse(mouseThrow.enabled);
+
+                body.bodyType = RigidbodyType2D.Dynamic;
+                mouseThrow.enabled = true;
+                animator.SetRollProgressForTests(1f);
+
+                Assert.AreEqual(RigidbodyType2D.Dynamic, body.bodyType);
+                Assert.IsTrue(mouseThrow.enabled);
+            }
+            finally
+            {
+                Object.DestroyImmediate(dropZoneObject);
+            }
+        }
+
+        [Test]
         public void FinalizeRoll_KeepsChildSeaweedCoverFullHeightAboveFillings()
         {
             GameObject seaweed = CreateSprite("Seaweed", Vector3.zero, new Vector2(3f, 3f), Color.green);
@@ -347,6 +411,21 @@ namespace KimbapGame.Tests.Kitchen
             GameObject navigatorObject = new GameObject("KitchenReturnNavigator");
             navigatorObject.transform.SetParent(rootObject.transform, false);
             return navigatorObject.AddComponent<TestKitchenReturnNavigator>();
+        }
+
+        private static GameObject CreateThrowableDropZone(
+            out KitchenDropZone dropZone,
+            out BoxCollider2D pickupCollider,
+            out Rigidbody2D body,
+            out MouseThrow2D mouseThrow)
+        {
+            GameObject dropZoneObject = new GameObject("KitchenDropZone");
+            pickupCollider = dropZoneObject.AddComponent<BoxCollider2D>();
+            body = dropZoneObject.AddComponent<Rigidbody2D>();
+            mouseThrow = dropZoneObject.AddComponent<MouseThrow2D>();
+            mouseThrow.enabled = false;
+            dropZone = dropZoneObject.AddComponent<KitchenDropZone>();
+            return dropZoneObject;
         }
 
         private static void WireCompleteFlow(

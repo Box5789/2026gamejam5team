@@ -763,3 +763,34 @@ Validation status:
 - Production kitchen grep for `new GameObject`, `AddComponent`, `GameObject.Find`, `FindObjectOfType`, and `KitchenSceneBootstrap` returned no matches.
 - `git diff --check` passed; Git reported LF-to-CRLF working-copy warnings only.
 - Unity Editor processes were open, so batchmode EditMode tests were not run in this pass.
+
+## 2026-06-28 - Completed Roll Throw Activation
+
+Current goal:
+
+- When rolling reaches completion threshold, make the completed kimbap assembly pickable through `KitchenDropZone`; on mouse down it becomes dynamic and starts `MouseThrow2D`.
+
+Decisions / contract:
+
+- `KitchenDropZone` owns the completed-roll pickup state.
+- `PrepareThrowableRoll()` enables the root `BoxCollider2D`, keeps the root `Rigidbody2D` kinematic, and keeps `MouseThrow2D` disabled until pickup.
+- `ActivateThrowableRollFromCurrentMouse()` / `OnMouseDown()` switches the root body to dynamic, enables `MouseThrow2D`, and starts dragging from the current mouse position.
+- `KitchenRollAnimator` calls `controller.DropZone.PrepareThrowableRoll()` once when `rollProgress >= completeProgressThreshold`.
+- Existing CompleteButton save and return-to-order flow remains unchanged.
+
+Files changed:
+
+- `Assets/Scripts/Gameplay/MouseThrow2D.cs`
+- `Assets/Scripts/Kitchen/KitchenController.cs`
+- `Assets/Scripts/Kitchen/KitchenDropZone.cs`
+- `Assets/Scripts/Kitchen/KitchenRollAnimator.cs`
+- `Assets/Tests/EditMode/Kitchen/KitchenDropZoneTests.cs`
+- `Assets/Tests/EditMode/Kitchen/KitchenRollAnimatorTests.cs`
+- `Assets/Tests/EditMode/Kitchen/KitchenSceneWiringTests.cs`
+
+Validation status:
+
+- `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 2 existing `OrderSceneController` obsolete API warnings and 0 errors.
+- Production kitchen grep for `new GameObject`, `AddComponent`, `GameObject.Find`, `FindObjectOfType`, and `KitchenSceneBootstrap` returned no matches.
+- `git diff --check` passed; Git reported LF-to-CRLF working-copy warnings only.
+- Unity Editor processes were open, so batchmode EditMode tests were not run in this pass.

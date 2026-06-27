@@ -1,6 +1,8 @@
+using KimbapGame.Gameplay;
 using KimbapGame.Data;
 using KimbapGame.Kitchen;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace KimbapGame.Tests.Kitchen
@@ -57,6 +59,81 @@ namespace KimbapGame.Tests.Kitchen
             }
         }
 
+        [Test]
+        public void PrepareThrowableRoll_EnablesColliderAndKeepsBodyKinematicWithThrowDisabled()
+        {
+            GameObject dropZoneObject = CreateThrowableDropZone(out KitchenDropZone dropZone, out BoxCollider2D pickupCollider, out Rigidbody2D body, out MouseThrow2D mouseThrow);
+
+            try
+            {
+                pickupCollider.enabled = false;
+                body.bodyType = RigidbodyType2D.Dynamic;
+                mouseThrow.enabled = true;
+
+                dropZone.PrepareThrowableRoll();
+
+                Assert.IsTrue(dropZone.IsThrowableRollPrepared);
+                Assert.IsTrue(pickupCollider.enabled);
+                Assert.AreEqual(RigidbodyType2D.Kinematic, body.bodyType);
+                Assert.IsFalse(mouseThrow.enabled);
+            }
+            finally
+            {
+                Object.DestroyImmediate(dropZoneObject);
+            }
+        }
+
+        [Test]
+        public void ActivateThrowableRoll_BeforePrepareDoesNotEnableThrow()
+        {
+            GameObject dropZoneObject = CreateThrowableDropZone(out KitchenDropZone dropZone, out BoxCollider2D pickupCollider, out Rigidbody2D body, out MouseThrow2D mouseThrow);
+
+            try
+            {
+                pickupCollider.enabled = false;
+                body.bodyType = RigidbodyType2D.Kinematic;
+                mouseThrow.enabled = false;
+
+                bool activated = dropZone.ActivateThrowableRollFromCurrentMouse();
+
+                Assert.IsFalse(activated);
+                Assert.IsFalse(pickupCollider.enabled);
+                Assert.AreEqual(RigidbodyType2D.Kinematic, body.bodyType);
+                Assert.IsFalse(mouseThrow.enabled);
+                Assert.IsFalse(mouseThrow.IsDragging);
+            }
+            finally
+            {
+                Object.DestroyImmediate(dropZoneObject);
+            }
+        }
+
+        [Test]
+        public void ActivateThrowableRoll_AfterPrepareMakesDynamicAndStartsMouseThrow()
+        {
+            GameObject cameraObject = new GameObject("KitchenCamera");
+            GameObject dropZoneObject = CreateThrowableDropZone(out KitchenDropZone dropZone, out _, out Rigidbody2D body, out MouseThrow2D mouseThrow);
+            Camera camera = cameraObject.AddComponent<Camera>();
+            SetMouseThrowCamera(mouseThrow, camera);
+
+            try
+            {
+                dropZone.PrepareThrowableRoll();
+
+                bool activated = dropZone.ActivateThrowableRollFromCurrentMouse();
+
+                Assert.IsTrue(activated);
+                Assert.AreEqual(RigidbodyType2D.Dynamic, body.bodyType);
+                Assert.IsTrue(mouseThrow.enabled);
+                Assert.IsTrue(mouseThrow.IsDragging);
+            }
+            finally
+            {
+                Object.DestroyImmediate(dropZoneObject);
+                Object.DestroyImmediate(cameraObject);
+            }
+        }
+
         private static KitchenIngredientDefinition CreateDefinition(KitchenIngredientCategory category, IngredientType ingredientType)
         {
             return new KitchenIngredientDefinition(
@@ -75,6 +152,28 @@ namespace KimbapGame.Tests.Kitchen
             renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
             previewObject.AddComponent<BoxCollider2D>();
             return previewObject;
+        }
+
+        private static GameObject CreateThrowableDropZone(
+            out KitchenDropZone dropZone,
+            out BoxCollider2D pickupCollider,
+            out Rigidbody2D body,
+            out MouseThrow2D mouseThrow)
+        {
+            GameObject dropZoneObject = new GameObject("KitchenDropZone");
+            pickupCollider = dropZoneObject.AddComponent<BoxCollider2D>();
+            body = dropZoneObject.AddComponent<Rigidbody2D>();
+            mouseThrow = dropZoneObject.AddComponent<MouseThrow2D>();
+            mouseThrow.enabled = false;
+            dropZone = dropZoneObject.AddComponent<KitchenDropZone>();
+            return dropZoneObject;
+        }
+
+        private static void SetMouseThrowCamera(MouseThrow2D mouseThrow, Camera camera)
+        {
+            SerializedObject serializedObject = new SerializedObject(mouseThrow);
+            serializedObject.FindProperty("targetCamera").objectReferenceValue = camera;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }

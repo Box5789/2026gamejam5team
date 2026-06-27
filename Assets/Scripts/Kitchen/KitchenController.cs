@@ -49,6 +49,8 @@ namespace KimbapGame.Kitchen
 
         public int MaxFillingItems => maxFillingItems;
 
+        public KitchenDropZone DropZone => dropZone;
+
         public GameObject TopSeaweedObject => topSeaweedObject;
 
         public SpreadableSurface CurrentRiceSurface => currentRiceSurface;

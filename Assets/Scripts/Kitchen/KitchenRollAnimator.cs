@@ -38,6 +38,7 @@ namespace KimbapGame.Kitchen
         private bool isDragging;
         private bool hasSnapshot;
         private bool hasFinalized;
+        private bool hasPreparedThrowableRoll;
 
         public bool IsRolling => isDragging;
 
@@ -243,6 +244,7 @@ namespace KimbapGame.Kitchen
             }
 
             SetCompleteButtonAvailable(IsReadyToComplete && !hasFinalized);
+            PrepareThrowableRollIfReady();
         }
 
         private bool CaptureSnapshot()
@@ -300,6 +302,7 @@ namespace KimbapGame.Kitchen
 
             rollProgress = 0f;
             hasFinalized = false;
+            hasPreparedThrowableRoll = false;
             return true;
         }
 
@@ -518,6 +521,17 @@ namespace KimbapGame.Kitchen
 
             completeButton.gameObject.SetActive(available);
             completeButton.interactable = available;
+        }
+
+        private void PrepareThrowableRollIfReady()
+        {
+            if (hasPreparedThrowableRoll || !IsReadyToComplete || controller == null || controller.DropZone == null)
+            {
+                return;
+            }
+
+            controller.DropZone.PrepareThrowableRoll();
+            hasPreparedThrowableRoll = true;
         }
 
         private static int MaxSortingOrder(int currentMax, Transform target)

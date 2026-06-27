@@ -1,4 +1,5 @@
 using System.IO;
+using KimbapGame.Gameplay;
 using KimbapGame.Kitchen;
 using NUnit.Framework;
 using UnityEditor;
@@ -47,6 +48,7 @@ namespace KimbapGame.Tests.Kitchen
             AssertObjectReference(controller, "dropZone");
             AssertObjectReference(controller, "ricePaintBridge");
             AssertObjectReference(controller, "riceSurfacePrefab");
+            AssertDropZoneThrowableWiring(dropZone);
             AssertObjectReference(navigator, "movingTablesRoot");
             AssertObjectReference(navigator, "nextButton");
             AssertObjectReference(navigator, "ricePaintBridge");
@@ -149,6 +151,20 @@ namespace KimbapGame.Tests.Kitchen
             KitchenIngredientSource source = prefab.GetComponent<KitchenIngredientSource>();
             Assert.IsNotNull(source, $"{prefabPath} root must have KitchenIngredientSource.");
             AssertObjectReference(source, "ingredientRenderer");
+        }
+
+        private static void AssertDropZoneThrowableWiring(KitchenDropZone dropZone)
+        {
+            BoxCollider2D pickupCollider = dropZone.GetComponent<BoxCollider2D>();
+            Rigidbody2D body = dropZone.GetComponent<Rigidbody2D>();
+            MouseThrow2D mouseThrow = dropZone.GetComponent<MouseThrow2D>();
+
+            Assert.IsNotNull(pickupCollider, "KitchenDropZone root must have a BoxCollider2D for completed roll pickup.");
+            Assert.IsFalse(pickupCollider.enabled, "KitchenDropZone BoxCollider2D must be disabled until roll completion.");
+            Assert.IsNotNull(body, "KitchenDropZone root must have a Rigidbody2D for completed roll throwing.");
+            Assert.AreEqual(RigidbodyType2D.Kinematic, body.bodyType, "KitchenDropZone Rigidbody2D must start kinematic.");
+            Assert.IsNotNull(mouseThrow, "KitchenDropZone root must have MouseThrow2D for completed roll throwing.");
+            Assert.IsFalse(mouseThrow.enabled, "KitchenDropZone MouseThrow2D must be disabled until pickup.");
         }
 
         private static void AssertPrefabInstanceRootPath(GameObject instance, string expectedPath)
