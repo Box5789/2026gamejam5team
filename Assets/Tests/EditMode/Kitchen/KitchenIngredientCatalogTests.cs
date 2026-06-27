@@ -271,6 +271,27 @@ namespace KimbapGame.Tests.Kitchen
         }
 
         [Test]
+        public void KitchenIngredientSpriteLoader_LoadsFillingImageByFileNameOnly()
+        {
+            Sprite hamSprite = KitchenIngredientSpriteLoader.Load("햄_line.png", "햄", "r31");
+            Sprite radishSprite = KitchenIngredientSpriteLoader.Load("단무지_line.png", "단무지", "r26");
+
+            Assert.IsNotNull(hamSprite);
+            Assert.AreEqual("햄_line_0", hamSprite.name);
+            Assert.IsNotNull(radishSprite);
+            Assert.AreEqual("단무지_line_0", radishSprite.name);
+        }
+
+        [Test]
+        public void KitchenIngredientSpriteLoader_LoadsFillingImageByResourcesPath()
+        {
+            Sprite sprite = KitchenIngredientSpriteLoader.Load("Kitchen/fillings_image/햄_line.png", string.Empty, string.Empty);
+
+            Assert.IsNotNull(sprite);
+            Assert.AreEqual("햄_line_0", sprite.name);
+        }
+
+        [Test]
         public void KitchenIngredientSpriteLoader_MissingExplicitImageReturnsNull()
         {
             Sprite sprite = KitchenIngredientSpriteLoader.Load("Kitchen/missing-ingredient-sprite", string.Empty, string.Empty);

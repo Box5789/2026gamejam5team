@@ -4,6 +4,52 @@
 
 Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, ingredient source rows center themselves from CSV counts, the hand/arm cursor is prefab-backed, `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms, and rolling is a small mouse/touch drag progress script without roll-guide runtime visuals.
 
+## 2026-06-28 Order Root Person Sprite Target
+
+- Changed order customer image targeting to the root `Person` world object.
+  - `Assets/Scenes/order.unity` now wires `OrderSceneController.personSpriteRenderer` to the root `Person` `SpriteRenderer` (`fileID: 605640439`).
+  - `OrderSceneController.personImage` remains unassigned, so the Canvas child `Person` `Image` no longer receives customer sprites in the default scene flow.
+- Code behavior:
+  - `SetPersonImage()` now applies loaded customer sprites to `personSpriteRenderer`.
+  - Reaction particles prefer the world `SpriteRenderer` path when `personSpriteRenderer` is present.
+  - The old `GameObject.Find("Person")` person fallback was removed because the scene has both root and Canvas `Person` objects.
+  - If `personSpriteRenderer` is missing, fallback lookup searches active `SpriteRenderer` objects named `Person`, preferring scene-root objects.
+
+## 2026-06-28 Mouse Cursor Visibility Helper
+
+- Added a small reusable `MouseCursorVisibility` component under `Assets/Scripts/Gameplay/`.
+  - Intended use: attach it to a scene object such as a cursor manager or `KitchenHandCursor` object when the OS cursor should be hidden.
+  - On enable, it stores the current global `Cursor.visible` and `Cursor.lockState`, then hides the cursor.
+  - Default lock mode is `CursorLockMode.None`, so existing mouse position input and custom hand cursor tracking continue to work.
+  - On disable, it restores the saved cursor state by default.
+
+## 2026-06-28 Rigidbody2D Mouse Throw Helper
+
+- Added a small reusable `MouseThrow2D` component under `Assets/Scripts/Gameplay/`.
+  - Intended use: attach it to any object that already has `Rigidbody2D` and `Collider2D`.
+  - Uses the project’s existing old Input style: `OnMouseDown`, `Input.mousePosition`, and `Input.GetMouseButtonUp(0)`.
+  - While dragging, gravity is temporarily disabled and the body follows the cursor through `Rigidbody2D.MovePosition()`.
+  - On release, the last cursor velocity is applied to `Rigidbody2D.linearVelocity`, clamped by `maxThrowSpeed`.
+- Scope:
+  - Mouse-only helper for quick 2D physics interactions.
+  - Touch support, new Input System actions, joints, and scene wiring are intentionally out of scope.
+
+## 2026-06-28 Rigidbody2D Mouse Spring Return Helper
+
+- Added a small reusable `MouseSpringReturn2D` component under `Assets/Scripts/Gameplay/`.
+  - Intended use: attach it to any object that already has `Rigidbody2D` and `Collider2D`.
+  - Uses one local fixed point, `anchorLocalPoint`, as the red point shown in the sketch.
+  - At Play start, the component stores that anchor's world position and treats it as a fixed pivot.
+  - During mouse drag, the cursor direction changes the target angle instead of applying force at the clicked point.
+  - On release, the body springs back to its rest angle while keeping the anchor fixed.
+  - No runtime joint, extra anchor GameObject, or generated scene object is required.
+- Tuning:
+  - `angleSpring` / `angleDamping` control the return bounce.
+  - `dragFollowSpeed` controls how quickly the drag target angle follows the cursor.
+  - `maxDragAngle` limits over-rotation around the rest angle.
+- Implementation note:
+  - The first force-based version used `AddForceAtPosition()` at both the anchor and drag point. With the current tall test object in `order.unity`, that created a large lever arm and caused immediate spinning. The helper now uses `MovePosition()` / `MoveRotation()` and zeroes physics velocity each fixed step.
+
 ## 2026-06-28 CompleteButton Immediate Order Return
 
 - Changed the completed-roll flow back to one button press.
@@ -17,6 +63,19 @@ Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice 
   - `KitchenReturnNavigator.ReturnToOrderScene()` is now virtual so EditMode tests can override it without loading scenes.
   - `KitchenRollAnimatorTests` covers ready complete-click save/return and below-threshold no-save/no-return.
   - `KitchenSceneWiringTests` now requires `returnNavigator` instead of `submitButton`.
+
+## 2026-06-28 Filling Image Search Root Fix
+
+- Fixed source/drag-preview visual sprite lookup for filling rows.
+  - Root cause: `Assets/StreamingAssets/Kitchen/ingredients.csv` uses filename-only values such as `햄_line.png`, while the actual assets live under `Assets/Resources/Kitchen/fillings_image/`.
+  - `KitchenIngredientSpriteLoader` now searches `Kitchen/fillings_image` in addition to `Kitchen` and `Kitchen/재료`.
+  - CSV can keep filename-only values like `햄_line.png`; direct paths such as `Kitchen/fillings_image/햄_line.png` also work.
+- Scope:
+  - Current source and drag preview visuals use the `*_line` image referenced by the `이미지` column.
+  - `*_box` images are present as assets but are not used by this source/preview path yet.
+- Updated tests:
+  - `KitchenIngredientCatalogTests` covers `햄_line.png`, `단무지_line.png`, and direct `Kitchen/fillings_image/햄_line.png` lookup.
+  - `KitchenIngredientTablePopulatorTests` verifies the filling source renderer and drag preview renderer receive `햄_line_0`.
 
 ## 2026-06-28 Rice Brush ID Fallback Fix
 

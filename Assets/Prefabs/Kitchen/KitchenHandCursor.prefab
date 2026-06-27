@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 100001}
   - component: {fileID: 100002}
+  - component: {fileID: 6126673182923475088}
   m_Layer: 0
   m_Name: KitchenHandCursor
   m_TagString: Untagged
@@ -73,6 +74,21 @@ MonoBehaviour:
   previewInEditMode: 1
   editModePreviewViewportPosition: {x: 0.5, y: 0.5}
   editModePreviewPressed: 0
+--- !u!114 &6126673182923475088
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 100000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 283c52c82c7b4beea24f89fc104b9bd4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hideOnEnable: 1
+  restoreOnDisable: 1
+  lockMode: 0
 --- !u!1 &100010
 GameObject:
   m_ObjectHideFlags: 0

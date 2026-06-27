@@ -225,11 +225,11 @@ namespace KimbapGame.Tests.Kitchen
         public void PopulateFromCsv_AppliesVisualSpriteToSourceRenderer()
         {
             KitchenIngredientTablePopulator populator = CreatePopulator();
-            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("Kitchen/floor", string.Empty, string.Empty);
+            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("햄_line.png", "햄", "r31");
 
             populator.PopulateFromCsv(
                 "Index,이름,분류,가격,이미지,필수여부\n"
-                + "f1,floor,속,,Kitchen/floor,\n");
+                + "r31,햄,속,,햄_line.png,\n");
 
             SpriteRenderer renderer = fillingRoot.transform.GetChild(0).GetComponentInChildren<SpriteRenderer>();
             Assert.IsNotNull(renderer);
@@ -262,11 +262,11 @@ namespace KimbapGame.Tests.Kitchen
         public void SourceClick_AppliesVisualSpriteToDragPreviewRenderer()
         {
             KitchenIngredientTablePopulator populator = CreatePopulator();
-            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("Kitchen/floor", string.Empty, string.Empty);
+            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("햄_line.png", "햄", "r31");
 
             populator.PopulateFromCsv(
                 "Index,이름,분류,가격,이미지,필수여부\n"
-                + "f1,floor,속,,Kitchen/floor,\n");
+                + "r31,햄,속,,햄_line.png,\n");
 
             KitchenIngredientSource source = fillingRoot.transform.GetChild(0).GetComponent<KitchenIngredientSource>();
             source.SendMessage("OnMouseDown");

@@ -447,15 +447,15 @@ namespace KimbapGame.Order
                 return;
             }
 
-            if (personImage != null)
-            {
-                emotionParticleRoutine = StartCoroutine(PlayUiEmotionParticles(usableSprites, isSuccess));
-                return;
-            }
-
             if (personSpriteRenderer != null)
             {
                 emotionParticleRoutine = StartCoroutine(PlayWorldEmotionParticles(usableSprites, isSuccess));
+                return;
+            }
+
+            if (personImage != null)
+            {
+                emotionParticleRoutine = StartCoroutine(PlayUiEmotionParticles(usableSprites, isSuccess));
             }
         }
 
@@ -726,12 +726,6 @@ namespace KimbapGame.Order
                 return;
             }
 
-            if (personImage != null)
-            {
-                personImage.sprite = sprite;
-                personImage.enabled = true;
-            }
-
             if (personSpriteRenderer != null)
             {
                 personSpriteRenderer.sprite = sprite;
@@ -840,18 +834,9 @@ namespace KimbapGame.Order
                 confirmButton = CreateConfirmButton();
             }
 
-            GameObject person = GameObject.Find("Person");
-            if (person != null)
+            if (personSpriteRenderer == null)
             {
-                if (personImage == null)
-                {
-                    personImage = person.GetComponent<Image>();
-                }
-
-                if (personSpriteRenderer == null)
-                {
-                    personSpriteRenderer = person.GetComponent<SpriteRenderer>();
-                }
+                personSpriteRenderer = FindRootPersonSpriteRenderer();
             }
 
             if (conversationText == null)
@@ -904,6 +889,30 @@ namespace KimbapGame.Order
                 if (button != null && button.name == name && button.gameObject.scene.IsValid())
                 {
                     return button;
+                }
+            }
+
+            return null;
+        }
+
+        private static SpriteRenderer FindRootPersonSpriteRenderer()
+        {
+            SpriteRenderer[] renderers = Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                SpriteRenderer renderer = renderers[i];
+                if (renderer != null && renderer.gameObject.name == "Person" && renderer.transform.parent == null)
+                {
+                    return renderer;
+                }
+            }
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                SpriteRenderer renderer = renderers[i];
+                if (renderer != null && renderer.gameObject.name == "Person")
+                {
+                    return renderer;
                 }
             }
 

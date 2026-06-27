@@ -1045,9 +1045,9 @@ MonoBehaviour:
     tableRoot: {fileID: 151001}
     sourcePrefab: {fileID: 100003, guid: 8f2a0d1c6bde4cc9a81428b61fd7e221, type: 3}
     rowCenter: {x: 0, y: 2, z: -0.2}
-    spacing: {x: 1.22, y: -0.8}
-    itemsPerRow: 11
-    localScale: {x: 1, y: 1, z: 1}
+    spacing: {x: 1.5, y: -0.8}
+    itemsPerRow: 8
+    localScale: {x: 0.5, y: 0.5, z: 1}
     dragPreviewSize: {x: 1, y: 1}
     placeholderColor: {r: 0.08, g: 0.16, b: 0.11, a: 1}
     sourceSortingOrderBase: 4
@@ -1056,9 +1056,9 @@ MonoBehaviour:
     tableRoot: {fileID: 152001}
     sourcePrefab: {fileID: 100003, guid: 0ad7dc3a6fd44f4a90ab1cf4aa8ec2db, type: 3}
     rowCenter: {x: 0, y: 2, z: -0.2}
-    spacing: {x: 1.1, y: -0.8}
+    spacing: {x: 2, y: -1.5}
     itemsPerRow: 7
-    localScale: {x: 1, y: 1, z: 1}
+    localScale: {x: 2, y: 2, z: 0}
     dragPreviewSize: {x: 1, y: 1}
     placeholderColor: {r: 1, g: 0.97, b: 0.86, a: 1}
     sourceSortingOrderBase: 4

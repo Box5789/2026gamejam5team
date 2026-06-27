@@ -8,7 +8,7 @@ namespace KimbapGame.Kitchen
     public static class KitchenIngredientSpriteLoader
     {
         private const string ResourcesPrefix = "Assets/Resources/";
-        private static readonly string[] SearchRoots = { "Kitchen", "Kitchen/재료" };
+        private static readonly string[] SearchRoots = { "Kitchen", "Kitchen/재료", "Kitchen/fillings_image" };
         private static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, Sprite[]> SpriteSetCache = new Dictionary<string, Sprite[]>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, Dictionary<string, Sprite>> RootIndexCache = new Dictionary<string, Dictionary<string, Sprite>>(StringComparer.OrdinalIgnoreCase);
