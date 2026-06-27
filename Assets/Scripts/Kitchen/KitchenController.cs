@@ -20,6 +20,10 @@ namespace KimbapGame.Kitchen
         [SerializeField] private string resultFileName = "KimbapResults.xlsx";
         [SerializeField] private int droppedSortingBase = 30;
         [SerializeField] private float riceSurfaceLocalZ = -0.05f;
+        [SerializeField] private bool logIngredientRegistrationDebug;
+        [SerializeField] private int debugDroppedFillingCount;
+        [SerializeField] private string debugTopSeaweedName = string.Empty;
+        [SerializeField] private string debugLastRegisteredObjectName = string.Empty;
 
         private readonly PreparedKimbapData preparedKimbap = new PreparedKimbapData();
         private readonly PlayerKimbap playerKimbap = new PlayerKimbap();
@@ -51,6 +55,14 @@ namespace KimbapGame.Kitchen
         public SpreadInputController CurrentRiceInputController => currentRiceInputController;
 
         public IReadOnlyList<GameObject> DroppedFillingObjects => droppedFillingObjects;
+
+        public bool LogIngredientRegistrationDebug => logIngredientRegistrationDebug;
+
+        public int DebugDroppedFillingCount => debugDroppedFillingCount;
+
+        public string DebugTopSeaweedName => debugTopSeaweedName;
+
+        public string DebugLastRegisteredObjectName => debugLastRegisteredObjectName;
 
         public void ConfigureSceneReferences(KitchenDropZone dropZone, KitchenRicePaintBridge ricePaintBridge)
         {
@@ -91,6 +103,7 @@ namespace KimbapGame.Kitchen
             droppedLayerIndex = 0;
             hasSavedCurrentKimbap = false;
             lastSavedPath = string.Empty;
+            RefreshRegistrationDebugFields(null);
         }
 
         public bool TryAddIngredient(KitchenIngredientDefinition definition)
@@ -166,12 +179,25 @@ namespace KimbapGame.Kitchen
                 DestroyCurrentRiceSurface();
                 topSeaweedObject = droppedObject;
                 BuildRiceSurfaceOnTopSeaweed(definition.PlaceholderColor, sortingOrder + 1);
+                LogRegistrationDebug(
+                    $"RegisterDroppedObject Seaweed top='{topSeaweedObject.name}' sorting={sortingOrder}",
+                    droppedObject);
             }
             else if (definition != null && definition.Category == KitchenIngredientCategory.Filling && droppedObject != null)
             {
                 droppedFillingObjects.Add(droppedObject);
+                LogRegistrationDebug(
+                    $"RegisterDroppedObject Filling object='{droppedObject.name}' DroppedFillingObjects count={droppedFillingObjects.Count} sorting={sortingOrder}",
+                    droppedObject);
+            }
+            else
+            {
+                LogRegistrationDebug(
+                    $"RegisterDroppedObject category='{GetCategoryName(definition)}' is not tracked by roll fillings. object='{GetObjectName(droppedObject)}' sorting={sortingOrder}",
+                    droppedObject);
             }
 
+            RefreshRegistrationDebugFields(droppedObject);
             return sortingOrder;
         }
 
@@ -314,6 +340,60 @@ namespace KimbapGame.Kitchen
         public string GetDebugSummary()
         {
             return string.Join(", ", preparedKimbap.AllItems.Select(item => item.ToExportString()).ToArray());
+        }
+
+        public void LogRegistrationDebug(string message, UnityEngine.Object context = null)
+        {
+            if (!logIngredientRegistrationDebug)
+            {
+                return;
+            }
+
+            if (context == null)
+            {
+                Debug.Log($"[KitchenRegistration] {message}");
+            }
+            else
+            {
+                Debug.Log($"[KitchenRegistration] {message}", context);
+            }
+        }
+
+        public string GetRegistrationDebugSummary(KitchenIngredientDefinition definition)
+        {
+            if (definition == null)
+            {
+                return "definition=null";
+            }
+
+            switch (definition.Category)
+            {
+                case KitchenIngredientCategory.Seaweed:
+                    return $"seaweed={preparedKimbap.seaweeds.Count}/{maxSeaweedLayers}";
+                case KitchenIngredientCategory.Rice:
+                    return $"rice={preparedKimbap.riceItems.Count}/{maxRiceLayers}, currentRiceSurface={GetObjectName(currentRiceSurface == null ? null : currentRiceSurface.gameObject)}";
+                case KitchenIngredientCategory.Filling:
+                    return $"filling={preparedKimbap.fillings.Count}/{maxFillingItems}, DroppedFillingObjects count={droppedFillingObjects.Count}";
+                default:
+                    return $"category={definition.Category}";
+            }
+        }
+
+        private void RefreshRegistrationDebugFields(GameObject lastRegisteredObject)
+        {
+            debugDroppedFillingCount = droppedFillingObjects.Count;
+            debugTopSeaweedName = topSeaweedObject == null ? string.Empty : topSeaweedObject.name;
+            debugLastRegisteredObjectName = lastRegisteredObject == null ? string.Empty : lastRegisteredObject.name;
+        }
+
+        private static string GetCategoryName(KitchenIngredientDefinition definition)
+        {
+            return definition == null ? "null" : definition.Category.ToString();
+        }
+
+        private static string GetObjectName(GameObject target)
+        {
+            return target == null ? "null" : target.name;
         }
     }
 }

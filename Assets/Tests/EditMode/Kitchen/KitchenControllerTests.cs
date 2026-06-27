@@ -87,6 +87,8 @@ namespace KimbapGame.Tests.Kitchen
                 Assert.AreSame(seaweedObject, controller.TopSeaweedObject);
                 Assert.IsNotNull(controller.CurrentRiceSurface);
                 Assert.IsNotNull(controller.CurrentRiceInputController);
+                Assert.AreEqual("SeaweedObject", controller.DebugTopSeaweedName);
+                Assert.AreEqual("SeaweedObject", controller.DebugLastRegisteredObjectName);
             }
             finally
             {
@@ -166,6 +168,8 @@ namespace KimbapGame.Tests.Kitchen
 
                 Assert.AreEqual(1, controller.DroppedFillingObjects.Count);
                 Assert.AreSame(fillingObject, controller.DroppedFillingObjects[0]);
+                Assert.AreEqual(1, controller.DebugDroppedFillingCount);
+                Assert.AreEqual("FillingObject", controller.DebugLastRegisteredObjectName);
             }
             finally
             {
@@ -186,6 +190,9 @@ namespace KimbapGame.Tests.Kitchen
                 controller.ResetPreparation();
 
                 Assert.AreEqual(0, controller.DroppedFillingObjects.Count);
+                Assert.AreEqual(0, controller.DebugDroppedFillingCount);
+                Assert.AreEqual(string.Empty, controller.DebugLastRegisteredObjectName);
+                Assert.AreEqual(string.Empty, controller.DebugTopSeaweedName);
             }
             finally
             {

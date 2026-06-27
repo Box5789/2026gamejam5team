@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,107 +7,102 @@ namespace KimbapGame.Kitchen
     [DisallowMultipleComponent]
     public sealed class KitchenRollAnimator : MonoBehaviour
     {
-        private const int FillingStripSortingOrder = 158;
-        private const int BodySortingOrder = 160;
-        private const int CapturedFillingSortingBase = 190;
-        private const int RollSortingOrder = 220;
-        private const float MinimumVisibleScale = 0.001f;
+        private const int FinalFillingSortingOrder = 158;
+        private const int FinalSeaweedSortingOrder = 160;
+        private const float MinimumScale = 0.001f;
 
         [SerializeField] private KitchenController controller;
-        [SerializeField] private GameObject rollGuidePrefab;
-        [SerializeField] private GameObject completedKimbapPrefab;
-        [SerializeField] private GameObject completedFillingCapPrefab;
-        [SerializeField] private Button rollButton;
+        [SerializeField] private Camera targetCamera;
         [SerializeField] private Button completeButton;
         [SerializeField] private Button submitButton;
-        [SerializeField] private float growDuration = 0.45f;
-        [SerializeField] private float moveDuration = 0.8f;
-        [SerializeField] private Color rollColor = new Color(1f, 0.78f, 0.18f, 1f);
-        [SerializeField] private Color completedOuterColor = new Color(0.08f, 0.14f, 0.09f, 1f);
-        [SerializeField] private Vector3 completedPreviewLocalOffset = Vector3.zero;
-        [SerializeField] private Vector2 completedBodySizeRatio = new Vector2(0.92f, 0.36f);
-        [SerializeField] private float completedFillingWidthOffset = 0.1f;
-        [SerializeField] private float completedFillingVerticalInset = 0.05f;
-        [SerializeField] private float completedFillingHeightScale = 0.72f;
+        [SerializeField, Range(0.01f, 1f)] private float dragStartBottomRatio = 0.25f;
+        [SerializeField, Min(0.01f)] private float dragDistanceToFullRoll = 2f;
+        [SerializeField, Min(0f)] private float unrollSpeed = 1f;
+        [SerializeField, Range(0.01f, 1f)] private float completeProgressThreshold = 0.95f;
+        [SerializeField] private Vector2 finalSeaweedSizeRatio = new Vector2(0.92f, 0.5f);
+        [SerializeField, Range(0.01f, 1f)] private float finalFillingYScale = 0.5f;
 
-        private readonly List<FillingRollState> fillingStates = new List<FillingRollState>();
-        private GameObject rollObject;
-        private SpriteRenderer rollRenderer;
-        private GameObject completedKimbapObject;
+        private readonly List<FillingPose> fillings = new List<FillingPose>();
         private Transform seaweedTransform;
         private SpriteRenderer seaweedRenderer;
-        private Transform visualParent;
-        private Vector3 originalSeaweedScale;
+        private KitchenRollSeaweedCover seaweedCover;
         private Vector3 originalSeaweedPosition;
+        private Quaternion originalSeaweedRotation;
+        private Vector3 originalSeaweedScale;
         private Bounds originalSeaweedBounds;
-        private int capturedFillingSlotCount;
-        private bool isRolling;
-        private bool hasPreparedRoll;
+        private int originalSeaweedSortingOrder;
+        private float rollProgress;
+        private float dragStartWorldY;
+        private float dragStartProgress;
+        private bool isDragging;
+        private bool hasSnapshot;
+        private bool hasFinalized;
 
-        public bool IsRolling => isRolling;
+        public bool IsRolling => isDragging;
 
-        public bool HasRollVisual => rollObject != null;
+        public float RollProgress => rollProgress;
 
-        public bool HasCompletedKimbap => completedKimbapObject != null;
-
-        public int CapturedFillingCount
-        {
-            get
-            {
-                int count = 0;
-                for (int i = 0; i < fillingStates.Count; i++)
-                {
-                    if (fillingStates[i].IsCaptured)
-                    {
-                        count++;
-                    }
-                }
-
-                return count;
-            }
-        }
-
-        public int CompletedEndCapCount
-        {
-            get
-            {
-                return CompletedFillingStripCount;
-            }
-        }
-
-        public int CompletedFillingStripCount
-        {
-            get
-            {
-                return completedKimbapObject == null
-                    ? 0
-                    : CountCompletedFillingStrips(completedKimbapObject.transform);
-            }
-        }
-
-        public Bounds RollBoundsForTests => rollRenderer == null ? default : rollRenderer.bounds;
-
-        public int RollSortingOrderForTests => rollRenderer == null ? int.MinValue : rollRenderer.sortingOrder;
+        public bool IsReadyToComplete => rollProgress >= completeProgressThreshold;
 
         public void Configure(KitchenController controller)
         {
             this.controller = controller;
         }
 
-        public void ConfigurePrefabsForTests(GameObject rollGuidePrefab, GameObject completedKimbapPrefab, GameObject completedFillingCapPrefab)
+        public void ConfigureTuningForTests(
+            float dragStartBottomRatio,
+            float dragDistanceToFullRoll,
+            float unrollSpeed,
+            float completeProgressThreshold,
+            float finalFillingYScale = 0.5f)
         {
-            this.rollGuidePrefab = rollGuidePrefab;
-            this.completedKimbapPrefab = completedKimbapPrefab;
-            this.completedFillingCapPrefab = completedFillingCapPrefab;
+            this.dragStartBottomRatio = Mathf.Clamp01(dragStartBottomRatio);
+            this.dragDistanceToFullRoll = Mathf.Max(0.01f, dragDistanceToFullRoll);
+            this.unrollSpeed = Mathf.Max(0f, unrollSpeed);
+            this.completeProgressThreshold = Mathf.Clamp01(completeProgressThreshold);
+            this.finalFillingYScale = Mathf.Clamp(finalFillingYScale, 0.01f, 1f);
+        }
+
+        public bool BeginRollDragForTests(Vector2 screenPosition)
+        {
+            return TryBeginDrag(screenPosition);
+        }
+
+        public void DragRollForTests(Vector2 screenPosition)
+        {
+            if (isDragging)
+            {
+                SetProgressFromDrag(screenPosition);
+            }
+        }
+
+        public void ReleaseRollForTests()
+        {
+            isDragging = false;
+        }
+
+        public void TickForTests(float deltaTime)
+        {
+            TickUnroll(deltaTime);
+        }
+
+        public void SetRollProgressForTests(float progress)
+        {
+            SetProgress(progress);
+        }
+
+        private void Awake()
+        {
+            if (targetCamera == null)
+            {
+                targetCamera = Camera.main;
+            }
+
+            SetCompleteButtonAvailable(false);
         }
 
         private void OnEnable()
         {
-            if (rollButton != null)
-            {
-                rollButton.onClick.AddListener(HandleRollClicked);
-            }
-
             if (completeButton != null)
             {
                 completeButton.onClick.AddListener(HandleCompleteClicked);
@@ -118,74 +111,50 @@ namespace KimbapGame.Kitchen
 
         private void OnDisable()
         {
-            if (rollButton != null)
-            {
-                rollButton.onClick.RemoveListener(HandleRollClicked);
-            }
-
             if (completeButton != null)
             {
                 completeButton.onClick.RemoveListener(HandleCompleteClicked);
             }
         }
 
-        public void PlayRoll(Action onFinished)
+        private void Update()
         {
-            if (isRolling)
+            if (hasFinalized)
             {
                 return;
             }
 
-            if (!PrepareRollVisual())
-            {
-                onFinished?.Invoke();
-                return;
-            }
-
-            StartCoroutine(RollRoutine(onFinished));
+            TickPointerInput();
+            TickUnroll(Time.deltaTime);
+            SetCompleteButtonAvailable(IsReadyToComplete);
         }
 
         public void FinalizeRoll()
         {
-            DestroyRollVisual();
-            HideFlatSeaweed();
-            HideRiceSurface();
-            HideOriginalFillings();
-            CreateCompletedKimbap();
-        }
-
-        private void HandleRollClicked()
-        {
-            if (rollButton != null)
+            if (hasFinalized || !IsReadyToComplete || !CaptureSnapshot())
             {
-                rollButton.interactable = false;
+                return;
             }
 
-            PlayRoll(() =>
-            {
-                if (rollButton != null)
-                {
-                    rollButton.gameObject.SetActive(false);
-                }
-
-                if (completeButton != null)
-                {
-                    completeButton.gameObject.SetActive(true);
-                }
-            });
+            isDragging = false;
+            hasFinalized = true;
+            SetProgress(1f);
+            HideRiceSurface();
+            ApplyFinalSorting();
+            SetCompleteButtonAvailable(false);
         }
 
         private void HandleCompleteClicked()
         {
             FinalizeRoll();
+            if (!hasFinalized)
+            {
+                return;
+            }
+
             if (controller != null)
             {
                 controller.CompleteAndSave();
-            }
-
-            if (completeButton != null)
-            {
-                completeButton.gameObject.SetActive(false);
             }
 
             if (submitButton != null)
@@ -194,409 +163,384 @@ namespace KimbapGame.Kitchen
             }
         }
 
-        public void PrepareRollForTests()
+        private void TickPointerInput()
         {
-            PrepareRollVisual();
-        }
-
-        public void SimulateRollStepForTests(float moveProgress)
-        {
-            if (!hasPreparedRoll && !PrepareRollVisual())
+            if (!TryGetPointer(out Vector2 screenPosition, out bool pressed, out bool started, out bool ended))
             {
+                isDragging = false;
                 return;
             }
 
-            float rollHeight = originalSeaweedBounds.size.y / 3f;
-            SetRollRect(rollHeight, Mathf.Clamp01(moveProgress));
-            CaptureOverlappingFillings();
-            MoveCapturedFillings();
+            if (started && !isDragging)
+            {
+                TryBeginDrag(screenPosition);
+            }
+
+            if (isDragging && pressed)
+            {
+                SetProgressFromDrag(screenPosition);
+            }
+
+            if (ended || !pressed)
+            {
+                isDragging = false;
+            }
         }
 
-        private IEnumerator RollRoutine(Action onFinished)
+        private bool TryBeginDrag(Vector2 screenPosition)
         {
-            isRolling = true;
-
-            float rollHeight = originalSeaweedBounds.size.y / 3f;
-            float elapsed = 0f;
-            while (elapsed < growDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = growDuration <= 0f ? 1f : Mathf.Clamp01(elapsed / growDuration);
-                SetRollRect(rollHeight * t, 0f);
-                CaptureOverlappingFillings();
-                MoveCapturedFillings();
-                yield return null;
-            }
-
-            SetRollRect(rollHeight, 0f);
-            CaptureOverlappingFillings();
-            MoveCapturedFillings();
-
-            elapsed = 0f;
-            while (elapsed < moveDuration)
-            {
-                elapsed += Time.deltaTime;
-                float t = moveDuration <= 0f ? 1f : Mathf.Clamp01(elapsed / moveDuration);
-                SetRollRect(rollHeight, t);
-                CaptureOverlappingFillings();
-                MoveCapturedFillings();
-                ApplySeaweedRemaining(1f - t);
-                yield return null;
-            }
-
-            SetRollRect(rollHeight, 1f);
-            CaptureOverlappingFillings();
-            MoveCapturedFillings();
-            ApplySeaweedRemaining(0f);
-            HideFlatSeaweed();
-            isRolling = false;
-            onFinished?.Invoke();
-        }
-
-        private bool PrepareRollVisual()
-        {
-            if (controller == null || controller.TopSeaweedObject == null)
+            if (hasFinalized || !CaptureSnapshot())
             {
                 return false;
             }
 
-            seaweedTransform = controller.TopSeaweedObject.transform;
-            seaweedRenderer = controller.TopSeaweedObject.GetComponent<SpriteRenderer>();
-            if (seaweedRenderer == null)
-            {
-                seaweedRenderer = controller.TopSeaweedObject.GetComponentInChildren<SpriteRenderer>();
-            }
-
-            if (seaweedRenderer == null)
+            Vector3 worldPoint = ScreenToWorld(screenPosition);
+            if (!IsInStartArea(worldPoint))
             {
                 return false;
             }
 
-            DestroyRollVisual();
-            DestroyCompletedKimbap();
-            fillingStates.Clear();
-            capturedFillingSlotCount = 0;
-
-            originalSeaweedScale = seaweedTransform.localScale;
-            originalSeaweedPosition = seaweedTransform.position;
-            originalSeaweedBounds = seaweedRenderer.bounds;
-            visualParent = seaweedTransform.parent;
-            hasPreparedRoll = true;
-            CacheFillings();
-
-            if (rollGuidePrefab == null)
-            {
-                Debug.LogWarning("KitchenRollAnimator requires a roll guide prefab.");
-                return false;
-            }
-
-            rollObject = Instantiate(rollGuidePrefab, visualParent, true);
-            rollObject.name = "RollGuideRect";
-            rollObject.transform.localScale = new Vector3(originalSeaweedBounds.size.x, 0f, 1f);
-
-            rollRenderer = rollObject.GetComponent<SpriteRenderer>();
-            if (rollRenderer == null)
-            {
-                Debug.LogWarning("Roll guide prefab must contain a SpriteRenderer.");
-                DestroyRollVisual();
-                return false;
-            }
-
-            if (rollRenderer.sprite == null)
-            {
-                rollRenderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
-            }
-
-            rollRenderer.color = rollColor;
-            rollRenderer.sortingOrder = RollSortingOrder;
-            SetRollRect(0f, 0f);
+            isDragging = true;
+            dragStartWorldY = worldPoint.y;
+            dragStartProgress = rollProgress;
+            SetProgressFromDrag(screenPosition);
             return true;
         }
 
-        private void CacheFillings()
+        private void SetProgressFromDrag(Vector2 screenPosition)
         {
-            if (controller == null)
+            float deltaY = ScreenToWorld(screenPosition).y - dragStartWorldY;
+            SetProgress(dragStartProgress + (deltaY / dragDistanceToFullRoll));
+        }
+
+        private void TickUnroll(float deltaTime)
+        {
+            if (isDragging || hasFinalized || IsReadyToComplete || rollProgress <= 0f)
             {
                 return;
             }
 
-            IReadOnlyList<GameObject> fillings = controller.DroppedFillingObjects;
+            SetProgress(rollProgress - (unrollSpeed * Mathf.Max(0f, deltaTime)));
+        }
+
+        private void SetProgress(float progress)
+        {
+            if (!CaptureSnapshot())
+            {
+                return;
+            }
+
+            rollProgress = Mathf.Clamp01(progress);
+            if (rollProgress <= 0f)
+            {
+                RestoreFlatPose();
+            }
+            else
+            {
+                ApplyRolledPose(rollProgress);
+            }
+
+            SetCompleteButtonAvailable(IsReadyToComplete && !hasFinalized);
+        }
+
+        private bool CaptureSnapshot()
+        {
+            if (controller == null || controller.TopSeaweedObject == null)
+            {
+                if (controller != null)
+                {
+                    controller.LogRegistrationDebug("Roll snapshot skipped because TopSeaweedObject is null.", this);
+                }
+
+                return false;
+            }
+
+            Transform currentSeaweed = controller.TopSeaweedObject.transform;
+            bool shouldCaptureSeaweed = !hasSnapshot || seaweedTransform != currentSeaweed;
+            if (shouldCaptureSeaweed && !CaptureSeaweedSnapshot(currentSeaweed))
+            {
+                return false;
+            }
+
+            int droppedFillingCount = controller.DroppedFillingObjects.Count;
+            int skippedNullFillings = RefreshFillingSnapshot();
+            controller.LogRegistrationDebug(
+                $"Roll snapshot topSeaweed='{seaweedTransform.name}' DroppedFillingObjects count={droppedFillingCount} snapshotFillingCount={fillings.Count} skippedNullFillings={skippedNullFillings}",
+                this);
+            hasSnapshot = true;
+            return true;
+        }
+
+        private bool CaptureSeaweedSnapshot(Transform currentSeaweed)
+        {
+            seaweedTransform = currentSeaweed;
+            seaweedRenderer = seaweedTransform.GetComponent<SpriteRenderer>();
+            if (seaweedRenderer == null)
+            {
+                seaweedRenderer = seaweedTransform.GetComponentInChildren<SpriteRenderer>();
+            }
+
+            if (seaweedRenderer == null)
+            {
+                return false;
+            }
+
+            originalSeaweedPosition = seaweedTransform.position;
+            originalSeaweedRotation = seaweedTransform.rotation;
+            originalSeaweedScale = seaweedTransform.localScale;
+            originalSeaweedBounds = seaweedRenderer.bounds;
+            originalSeaweedSortingOrder = seaweedRenderer.sortingOrder;
+            seaweedCover = seaweedTransform.GetComponent<KitchenRollSeaweedCover>();
+            if (seaweedCover != null)
+            {
+                seaweedCover.Hide();
+            }
+
+            rollProgress = 0f;
+            hasFinalized = false;
+            return true;
+        }
+
+        private int RefreshFillingSnapshot()
+        {
+            IReadOnlyList<GameObject> droppedFillings = controller.DroppedFillingObjects;
+            if (FillingSnapshotMatches(droppedFillings, out int skippedNullFillings))
+            {
+                return skippedNullFillings;
+            }
+
+            fillings.Clear();
+            skippedNullFillings = 0;
+            for (int i = 0; i < droppedFillings.Count; i++)
+            {
+                if (droppedFillings[i] != null)
+                {
+                    fillings.Add(new FillingPose(droppedFillings[i].transform));
+                }
+                else
+                {
+                    skippedNullFillings++;
+                }
+            }
+
+            return skippedNullFillings;
+        }
+
+        private bool FillingSnapshotMatches(IReadOnlyList<GameObject> droppedFillings, out int skippedNullFillings)
+        {
+            skippedNullFillings = 0;
+            int fillingIndex = 0;
+            for (int i = 0; i < droppedFillings.Count; i++)
+            {
+                GameObject droppedFilling = droppedFillings[i];
+                if (droppedFilling == null)
+                {
+                    skippedNullFillings++;
+                    continue;
+                }
+
+                if (fillingIndex >= fillings.Count || fillings[fillingIndex].Transform != droppedFilling.transform)
+                {
+                    return false;
+                }
+
+                fillingIndex++;
+            }
+
+            return fillingIndex == fillings.Count;
+        }
+
+        private void ApplyRolledPose(float progress)
+        {
+            float clampedProgress = Mathf.Clamp01(progress);
+            float finalXRatio = Mathf.Max(MinimumScale, finalSeaweedSizeRatio.x);
+            float finalYRatio = Mathf.Max(MinimumScale, finalSeaweedSizeRatio.y);
+            float currentYRatio = Mathf.Lerp(1f, finalYRatio, clampedProgress);
+
+            seaweedTransform.position = originalSeaweedPosition
+                + Vector3.up * (originalSeaweedBounds.size.y * (1f - currentYRatio) * 0.5f);
+            seaweedTransform.rotation = originalSeaweedRotation;
+            seaweedTransform.localScale = new Vector3(
+                originalSeaweedScale.x * Mathf.Lerp(1f, finalXRatio, clampedProgress),
+                originalSeaweedScale.y * currentYRatio,
+                originalSeaweedScale.z);
+
+            float finalCenterY = originalSeaweedBounds.center.y
+                + (originalSeaweedBounds.size.y * (1f - finalYRatio) * 0.5f);
             for (int i = 0; i < fillings.Count; i++)
             {
-                GameObject fillingObject = fillings[i];
-                if (fillingObject == null)
-                {
-                    continue;
-                }
-
-                SpriteRenderer renderer = fillingObject.GetComponent<SpriteRenderer>();
-                if (renderer == null)
-                {
-                    renderer = fillingObject.GetComponentInChildren<SpriteRenderer>();
-                }
-
-                if (renderer == null)
-                {
-                    continue;
-                }
-
-                fillingStates.Add(new FillingRollState(fillingObject.transform, renderer, renderer.color));
+                fillings[i].ApplyYCompression(
+                    originalSeaweedBounds.center.y,
+                    finalCenterY,
+                    finalFillingYScale,
+                    clampedProgress);
             }
+
+            ShowSeaweedCover(clampedProgress);
         }
 
-        private void SetRollRect(float height, float moveProgress)
+        private void RestoreFlatPose()
         {
-            if (rollObject == null)
+            if (seaweedTransform != null)
             {
-                return;
+                seaweedTransform.position = originalSeaweedPosition;
+                seaweedTransform.rotation = originalSeaweedRotation;
+                seaweedTransform.localScale = originalSeaweedScale;
             }
 
-            float rollHeight = Mathf.Max(0f, height);
-            float bottomCenterY = originalSeaweedBounds.min.y + (rollHeight * 0.5f);
-            float topCenterY = originalSeaweedBounds.max.y - (rollHeight * 0.5f);
-            float centerY = Mathf.Lerp(bottomCenterY, topCenterY, Mathf.Clamp01(moveProgress));
-            rollObject.transform.position = new Vector3(
-                originalSeaweedBounds.center.x,
-                centerY,
-                originalSeaweedPosition.z - 0.2f);
-            rollObject.transform.localScale = new Vector3(
-                originalSeaweedBounds.size.x,
-                rollHeight,
-                1f);
-        }
-
-        private void CaptureOverlappingFillings()
-        {
-            if (rollRenderer == null)
+            if (seaweedRenderer != null)
             {
-                return;
+                seaweedRenderer.sortingOrder = originalSeaweedSortingOrder;
             }
 
-            Bounds rollBounds = rollRenderer.bounds;
-            for (int i = 0; i < fillingStates.Count; i++)
+            if (seaweedCover != null)
             {
-                FillingRollState state = fillingStates[i];
-                if (state.IsCaptured || state.Renderer == null || !state.Renderer.enabled)
-                {
-                    continue;
-                }
+                seaweedCover.Hide();
+            }
 
-                if (!rollBounds.Intersects(state.Renderer.bounds))
-                {
-                    continue;
-                }
-
-                state.Capture(capturedFillingSlotCount);
-                capturedFillingSlotCount++;
-                ApplyFillingSortingOrder(state.Transform.gameObject, CapturedFillingSortingBase + i);
+            for (int i = 0; i < fillings.Count; i++)
+            {
+                fillings[i].Restore();
             }
         }
 
-        private void MoveCapturedFillings()
-        {
-            if (rollObject == null || rollRenderer == null || capturedFillingSlotCount <= 0)
-            {
-                return;
-            }
-
-            Bounds rollBounds = rollRenderer.bounds;
-            float usableHeight = Mathf.Max(0.01f, rollBounds.size.y * 0.3f);
-            float startY = capturedFillingSlotCount == 1 ? 0f : -usableHeight * 0.5f;
-            float stepY = capturedFillingSlotCount == 1 ? 0f : usableHeight / (capturedFillingSlotCount - 1);
-
-            for (int i = 0; i < fillingStates.Count; i++)
-            {
-                FillingRollState state = fillingStates[i];
-                if (!state.IsCaptured || state.Renderer == null)
-                {
-                    continue;
-                }
-
-                float yOffset = startY + (stepY * state.SlotIndex);
-                state.MoveInsideRoll(new Vector3(
-                    rollBounds.center.x,
-                    rollBounds.center.y + yOffset,
-                    rollObject.transform.position.z - 0.05f));
-            }
-        }
-
-        private void ApplySeaweedRemaining(float remainingFraction)
-        {
-            if (seaweedTransform == null)
-            {
-                return;
-            }
-
-            float clampedRemaining = Mathf.Clamp01(remainingFraction);
-            Vector3 scale = originalSeaweedScale;
-            scale.y = originalSeaweedScale.y * Mathf.Max(clampedRemaining, MinimumVisibleScale);
-            seaweedTransform.localScale = scale;
-
-            float removedHeight = originalSeaweedBounds.size.y * (1f - clampedRemaining);
-            seaweedTransform.position = originalSeaweedPosition + Vector3.up * (removedHeight * 0.5f);
-        }
-
-        private void HideFlatSeaweed()
+        private void ApplyFinalSorting()
         {
             if (seaweedRenderer != null)
             {
-                seaweedRenderer.enabled = false;
+                seaweedRenderer.sortingOrder = FinalSeaweedSortingOrder;
             }
+
+            for (int i = 0; i < fillings.Count; i++)
+            {
+                SetSortingOrder(fillings[i].Transform, FinalFillingSortingOrder + i);
+            }
+
+            ShowSeaweedCover(1f);
+        }
+
+        private void ShowSeaweedCover(float progress)
+        {
+            if (seaweedCover == null)
+            {
+                return;
+            }
+
+            if (progress <= 0f)
+            {
+                seaweedCover.Hide();
+                return;
+            }
+
+            seaweedCover.Show(seaweedRenderer, progress, ResolveSeaweedCoverSortingOrder());
+        }
+
+        private int ResolveSeaweedCoverSortingOrder()
+        {
+            int maxSortingOrder = seaweedRenderer == null
+                ? originalSeaweedSortingOrder
+                : seaweedRenderer.sortingOrder;
+
+            for (int i = 0; i < fillings.Count; i++)
+            {
+                maxSortingOrder = MaxSortingOrder(maxSortingOrder, fillings[i].Transform);
+            }
+
+            if (controller != null && controller.CurrentRiceSurface != null)
+            {
+                maxSortingOrder = MaxSortingOrder(maxSortingOrder, controller.CurrentRiceSurface.transform);
+            }
+
+            return maxSortingOrder + 1;
         }
 
         private void HideRiceSurface()
         {
-            if (controller == null || controller.CurrentRiceSurface == null)
+            if (controller != null && controller.CurrentRiceSurface != null)
+            {
+                controller.CurrentRiceSurface.gameObject.SetActive(false);
+            }
+        }
+
+        private bool IsInStartArea(Vector3 worldPoint)
+        {
+            float bottomLimit = originalSeaweedBounds.min.y
+                + (originalSeaweedBounds.size.y * Mathf.Clamp01(dragStartBottomRatio));
+            return worldPoint.x >= originalSeaweedBounds.min.x
+                && worldPoint.x <= originalSeaweedBounds.max.x
+                && worldPoint.y >= originalSeaweedBounds.min.y
+                && worldPoint.y <= bottomLimit;
+        }
+
+        private Vector3 ScreenToWorld(Vector2 screenPosition)
+        {
+            if (targetCamera == null)
+            {
+                targetCamera = Camera.main;
+            }
+
+            if (targetCamera == null)
+            {
+                return new Vector3(screenPosition.x, screenPosition.y, originalSeaweedPosition.z);
+            }
+
+            float distance = Mathf.Abs(targetCamera.transform.position.z - originalSeaweedPosition.z);
+            return targetCamera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, distance));
+        }
+
+        private bool TryGetPointer(out Vector2 screenPosition, out bool pressed, out bool started, out bool ended)
+        {
+            if (Input.touchCount > 0)
+            {
+                Touch touch = Input.GetTouch(0);
+                screenPosition = touch.position;
+                started = touch.phase == TouchPhase.Began;
+                ended = touch.phase == TouchPhase.Canceled || touch.phase == TouchPhase.Ended;
+                pressed = !ended;
+                return true;
+            }
+
+            screenPosition = Input.mousePosition;
+            pressed = Input.GetMouseButton(0);
+            started = Input.GetMouseButtonDown(0);
+            ended = Input.GetMouseButtonUp(0);
+            return pressed || started || ended || isDragging;
+        }
+
+        private void SetCompleteButtonAvailable(bool available)
+        {
+            if (completeButton == null)
             {
                 return;
             }
 
-            controller.CurrentRiceSurface.gameObject.SetActive(false);
+            completeButton.gameObject.SetActive(available);
+            completeButton.interactable = available;
         }
 
-        private void HideOriginalFillings()
+        private static int MaxSortingOrder(int currentMax, Transform target)
         {
-            for (int i = 0; i < fillingStates.Count; i++)
+            if (target == null)
             {
-                fillingStates[i].HideRenderer();
+                return currentMax;
             }
+
+            SpriteRenderer[] renderers = target.GetComponentsInChildren<SpriteRenderer>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                currentMax = Mathf.Max(currentMax, renderers[i].sortingOrder);
+            }
+
+            return currentMax;
         }
 
-        private void CreateCompletedKimbap()
+        private static void SetSortingOrder(Transform target, int sortingOrder)
         {
-            if (completedKimbapObject != null)
+            if (target == null)
             {
                 return;
             }
 
-            Bounds bounds = hasPreparedRoll ? originalSeaweedBounds : ResolveCurrentBounds();
-            Transform parent = visualParent != null ? visualParent : transform;
-            if (completedKimbapPrefab == null)
-            {
-                Debug.LogWarning("KitchenRollAnimator requires a completed kimbap prefab.");
-                return;
-            }
-
-            completedKimbapObject = Instantiate(completedKimbapPrefab, parent, true);
-            completedKimbapObject.name = "CompletedKimbapPreview";
-            completedKimbapObject.transform.position = new Vector3(bounds.center.x, bounds.center.y, originalSeaweedPosition.z - 0.25f);
-            completedKimbapObject.transform.localPosition += completedPreviewLocalOffset;
-            completedKimbapObject.transform.localScale = Vector3.one;
-            DisableRenderer(completedKimbapObject.GetComponent<SpriteRenderer>());
-
-            Vector2 bodySize = new Vector2(
-                bounds.size.x * Mathf.Max(0.01f, completedBodySizeRatio.x),
-                bounds.size.y * Mathf.Max(0.01f, completedBodySizeRatio.y));
-            CreateFillingStrips(bodySize);
-            CreateRectChild(
-                "CompletedKimbapBody",
-                Vector3.zero,
-                bodySize,
-                completedOuterColor,
-                BodySortingOrder);
-        }
-
-        private void CreateFillingStrips(Vector2 bodySize)
-        {
-            if (fillingStates.Count == 0 || completedFillingCapPrefab == null)
-            {
-                return;
-            }
-
-            float verticalInset = Mathf.Clamp(completedFillingVerticalInset, 0f, bodySize.y * 0.45f);
-            float innerHeight = Mathf.Max(0.01f, bodySize.y - (verticalInset * 2f));
-            float stripHeight = Mathf.Max(
-                0.01f,
-                innerHeight / Mathf.Max(1, fillingStates.Count) * Mathf.Max(0.01f, completedFillingHeightScale));
-            float usableHeight = Mathf.Max(0.01f, innerHeight - stripHeight);
-            float startY = fillingStates.Count == 1 ? 0f : -usableHeight * 0.5f;
-            float stepY = fillingStates.Count == 1 ? 0f : usableHeight / (fillingStates.Count - 1);
-            float widthOffset = Mathf.Max(0f, completedFillingWidthOffset);
-            Vector2 stripSize = new Vector2(bodySize.x + (widthOffset * 2f), stripHeight);
-
-            for (int i = 0; i < fillingStates.Count; i++)
-            {
-                float y = startY + (stepY * i);
-                CreateFillingStrip(
-                    $"CompletedFillingStrip_{i}",
-                    new Vector3(0f, y, 0.03f),
-                    stripSize,
-                    fillingStates[i].Color,
-                    FillingStripSortingOrder + i);
-            }
-        }
-
-        private void CreateFillingStrip(string objectName, Vector3 localPosition, Vector2 size, Color color, int sortingOrder)
-        {
-            GameObject stripObject = Instantiate(completedFillingCapPrefab, completedKimbapObject.transform, false);
-            stripObject.name = objectName;
-            stripObject.transform.localPosition = localPosition;
-            stripObject.transform.localScale = new Vector3(size.x, size.y, 1f);
-
-            SpriteRenderer renderer = stripObject.GetComponent<SpriteRenderer>();
-            if (renderer == null)
-            {
-                return;
-            }
-
-            if (renderer.sprite == null)
-            {
-                renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
-            }
-
-            renderer.color = color;
-            renderer.sortingOrder = sortingOrder;
-        }
-
-        private GameObject CreateRectChild(string objectName, Vector3 localPosition, Vector2 size, Color color, int sortingOrder)
-        {
-            GameObject rectObject = new GameObject(objectName);
-            rectObject.transform.SetParent(completedKimbapObject.transform, false);
-            rectObject.transform.localPosition = localPosition;
-            rectObject.transform.localScale = new Vector3(size.x, size.y, 1f);
-
-            SpriteRenderer renderer = rectObject.AddComponent<SpriteRenderer>();
-            renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
-            renderer.color = color;
-            renderer.sortingOrder = sortingOrder;
-            return rectObject;
-        }
-
-        private Bounds ResolveCurrentBounds()
-        {
-            if (controller != null && controller.TopSeaweedObject != null)
-            {
-                SpriteRenderer renderer = controller.TopSeaweedObject.GetComponent<SpriteRenderer>();
-                if (renderer != null)
-                {
-                    return renderer.bounds;
-                }
-            }
-
-            return new Bounds(transform.position, new Vector3(2.4f, 1.7f, 1f));
-        }
-
-        private void DestroyRollVisual()
-        {
-            if (rollObject != null)
-            {
-                DestroyUnityObject(rollObject);
-                rollObject = null;
-                rollRenderer = null;
-            }
-        }
-
-        private void DestroyCompletedKimbap()
-        {
-            if (completedKimbapObject != null)
-            {
-                DestroyUnityObject(completedKimbapObject);
-                completedKimbapObject = null;
-            }
-        }
-
-        private static void ApplyFillingSortingOrder(GameObject target, int sortingOrder)
-        {
             SpriteRenderer[] renderers = target.GetComponentsInChildren<SpriteRenderer>();
             for (int i = 0; i < renderers.Length; i++)
             {
@@ -604,83 +548,52 @@ namespace KimbapGame.Kitchen
             }
         }
 
-        private static int CountCompletedFillingStrips(Transform root)
+        private readonly struct FillingPose
         {
-            int count = 0;
-            Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
-            for (int i = 0; i < transforms.Length; i++)
-            {
-                string objectName = transforms[i].name;
-                if (objectName.StartsWith("CompletedFillingStrip_", StringComparison.Ordinal))
-                {
-                    count++;
-                }
-            }
+            private readonly Vector3 originalPosition;
+            private readonly Quaternion originalRotation;
+            private readonly Vector3 originalScale;
 
-            return count;
-        }
-
-        private static void DisableRenderer(SpriteRenderer renderer)
-        {
-            if (renderer != null)
-            {
-                renderer.enabled = false;
-            }
-        }
-
-        private static void DestroyUnityObject(UnityEngine.Object target)
-        {
-            if (Application.isPlaying)
-            {
-                Destroy(target);
-            }
-            else
-            {
-                DestroyImmediate(target);
-            }
-        }
-
-        private sealed class FillingRollState
-        {
-            public FillingRollState(Transform transform, SpriteRenderer renderer, Color color)
+            public FillingPose(Transform transform)
             {
                 Transform = transform;
-                Renderer = renderer;
-                Color = color;
+                originalPosition = transform.position;
+                originalRotation = transform.rotation;
+                originalScale = transform.localScale;
             }
 
             public Transform Transform { get; }
 
-            public SpriteRenderer Renderer { get; }
-
-            public Color Color { get; }
-
-            public bool IsCaptured { get; private set; }
-
-            public int SlotIndex { get; private set; }
-
-            public void Capture(int slotIndex)
+            public void ApplyYCompression(
+                float originalSeaweedCenterY,
+                float finalSeaweedCenterY,
+                float finalFillingYScale,
+                float progress)
             {
-                IsCaptured = true;
-                SlotIndex = slotIndex;
-            }
-
-            public void MoveInsideRoll(Vector3 position)
-            {
-                if (!IsCaptured || Transform == null)
+                if (Transform == null)
                 {
                     return;
                 }
 
+                float compressedY = finalSeaweedCenterY
+                    + ((originalPosition.y - originalSeaweedCenterY) * finalFillingYScale);
+                Vector3 position = originalPosition;
+                position.y = Mathf.Lerp(originalPosition.y, compressedY, Mathf.Clamp01(progress));
                 Transform.position = position;
+                Transform.rotation = originalRotation;
+                Transform.localScale = originalScale;
             }
 
-            public void HideRenderer()
+            public void Restore()
             {
-                if (Renderer != null)
+                if (Transform == null)
                 {
-                    Renderer.enabled = false;
+                    return;
                 }
+
+                Transform.position = originalPosition;
+                Transform.rotation = originalRotation;
+                Transform.localScale = originalScale;
             }
         }
     }

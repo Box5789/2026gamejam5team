@@ -11,6 +11,7 @@ namespace KimbapGame.Tests.Kitchen
     {
         private const string KitchenScenePath = "Assets/Scenes/kitchen.unity";
         private const string SourcePrefabPath = "Assets/Prefabs/Kitchen/KitchenIngredientSource.prefab";
+        private const string DragPreviewPrefabPath = "Assets/Prefabs/Kitchen/KitchenDragPreview.prefab";
         private const string HandCursorPrefabPath = "Assets/Prefabs/Kitchen/KitchenHandCursor.prefab";
         private const string RemovedBootstrapGuid = "a6cdb1e799334b2c9ee5cd48966b7eca";
 
@@ -49,10 +50,7 @@ namespace KimbapGame.Tests.Kitchen
             AssertObjectReference(navigator, "ricePaintBridge");
             AssertObjectReference(navigator, "ricePaintingTableRoot");
             AssertObjectReference(rollAnimator, "controller");
-            AssertObjectReference(rollAnimator, "rollGuidePrefab");
-            AssertObjectReference(rollAnimator, "completedKimbapPrefab");
-            AssertObjectReference(rollAnimator, "completedFillingCapPrefab");
-            AssertObjectReference(rollAnimator, "rollButton");
+            AssertObjectReference(rollAnimator, "targetCamera");
             AssertObjectReference(rollAnimator, "completeButton");
             AssertObjectReference(rollAnimator, "submitButton");
             AssertObjectReference(populator, "sourcePrefab");
@@ -77,6 +75,7 @@ namespace KimbapGame.Tests.Kitchen
             AssertObjectReference(handCursor, "handRenderer");
             AssertPrefabInstanceRootPath(handCursor.gameObject, HandCursorPrefabPath);
             AssertNavigatorTableRoots(navigator);
+            AssertDragPreviewPrefabHasRollSeaweedCover();
         }
 
         private static void AssertObjectReference(Object target, string propertyPath)
@@ -139,6 +138,18 @@ namespace KimbapGame.Tests.Kitchen
             }
 
             Assert.IsTrue(riceRootIsDirectChild, "Rice painting table root must be a direct child of MovingTablesRoot.");
+        }
+
+        private static void AssertDragPreviewPrefabHasRollSeaweedCover()
+        {
+            GameObject dragPreviewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(DragPreviewPrefabPath);
+            Assert.IsNotNull(dragPreviewPrefab, $"{DragPreviewPrefabPath} must exist.");
+
+            KitchenRollSeaweedCover cover = dragPreviewPrefab.GetComponent<KitchenRollSeaweedCover>();
+            Assert.IsNotNull(cover, "KitchenDragPreview.prefab must include KitchenRollSeaweedCover on the root.");
+            Assert.IsNotNull(cover.CoverRenderer, "KitchenRollSeaweedCover.coverRenderer must be wired.");
+            Assert.AreEqual("RollSeaweedCover", cover.CoverRenderer.name);
+            Assert.IsFalse(cover.CoverRenderer.gameObject.activeSelf, "RollSeaweedCover child must be inactive by default.");
         }
 
         private static Object GetObjectReference(Object target, string propertyPath)

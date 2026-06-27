@@ -136,6 +136,53 @@ namespace KimbapGame.Tests.Kitchen
             AssertLocalPosition(new Vector3(0f, 2.575f, -0.2f), seaweedRoot.transform.GetChild(1));
         }
 
+        [Test]
+        public void PopulateFromCsv_AppliesVisualSpriteToSourceRenderer()
+        {
+            KitchenIngredientTablePopulator populator = CreatePopulator();
+            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("Kitchen/floor", string.Empty, string.Empty);
+
+            populator.PopulateFromCsv(
+                "Index,이름,분류,가격,이미지,필수여부\n"
+                + "f1,floor,속,,Kitchen/floor,\n");
+
+            SpriteRenderer renderer = fillingRoot.transform.GetChild(0).GetComponentInChildren<SpriteRenderer>();
+            Assert.IsNotNull(renderer);
+            Assert.AreSame(expectedSprite, renderer.sprite);
+            AssertColor(Color.white, renderer.color);
+        }
+
+        [Test]
+        public void SourceClick_AppliesVisualSpriteToDragPreviewRenderer()
+        {
+            KitchenIngredientTablePopulator populator = CreatePopulator();
+            Sprite expectedSprite = KitchenIngredientSpriteLoader.Load("Kitchen/floor", string.Empty, string.Empty);
+
+            populator.PopulateFromCsv(
+                "Index,이름,분류,가격,이미지,필수여부\n"
+                + "f1,floor,속,,Kitchen/floor,\n");
+
+            KitchenIngredientSource source = fillingRoot.transform.GetChild(0).GetComponent<KitchenIngredientSource>();
+            source.SendMessage("OnMouseDown");
+            KitchenDraggableItem preview = FindSpawnedPreview();
+
+            try
+            {
+                Assert.IsNotNull(preview);
+                SpriteRenderer renderer = preview.GetComponent<SpriteRenderer>();
+                Assert.IsNotNull(renderer);
+                Assert.AreSame(expectedSprite, renderer.sprite);
+                AssertColor(Color.white, renderer.color);
+            }
+            finally
+            {
+                if (preview != null)
+                {
+                    Destroy(preview.gameObject);
+                }
+            }
+        }
+
         private KitchenIngredientTablePopulator CreatePopulator(
             int seaweedItemsPerRow = 10,
             int riceItemsPerRow = 10,
@@ -153,10 +200,19 @@ namespace KimbapGame.Tests.Kitchen
 
             KitchenIngredientSource sourcePrefab = sourcePrefabObject.AddComponent<KitchenIngredientSource>();
             sourcePrefabObject.AddComponent<BoxCollider2D>();
+            GameObject ingredientObject = new GameObject("Ingredient");
+            ingredientObject.transform.SetParent(sourcePrefabObject.transform);
+            SpriteRenderer ingredientRenderer = ingredientObject.AddComponent<SpriteRenderer>();
+            dragPrefabObject.AddComponent<SpriteRenderer>();
+            dragPrefabObject.AddComponent<KitchenDraggableItem>();
             KitchenController controller = controllerObject.AddComponent<KitchenController>();
             KitchenDropZone dropZone = dropZoneObject.AddComponent<KitchenDropZone>();
             Camera camera = cameraObject.AddComponent<Camera>();
             KitchenIngredientTablePopulator populator = populatorObject.AddComponent<KitchenIngredientTablePopulator>();
+
+            SerializedObject sourceSerializedObject = new SerializedObject(sourcePrefab);
+            sourceSerializedObject.FindProperty("ingredientRenderer").objectReferenceValue = ingredientRenderer;
+            sourceSerializedObject.ApplyModifiedPropertiesWithoutUndo();
 
             SerializedObject serializedObject = new SerializedObject(populator);
             serializedObject.FindProperty("sourcePrefab").objectReferenceValue = sourcePrefab;
@@ -237,6 +293,28 @@ namespace KimbapGame.Tests.Kitchen
             Assert.AreEqual(expected.x, actual.localPosition.x, 0.0001f);
             Assert.AreEqual(expected.y, actual.localPosition.y, 0.0001f);
             Assert.AreEqual(expected.z, actual.localPosition.z, 0.0001f);
+        }
+
+        private KitchenDraggableItem FindSpawnedPreview()
+        {
+            KitchenDraggableItem[] previews = Object.FindObjectsByType<KitchenDraggableItem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int i = 0; i < previews.Length; i++)
+            {
+                if (previews[i].gameObject != dragPrefabObject)
+                {
+                    return previews[i];
+                }
+            }
+
+            return null;
+        }
+
+        private static void AssertColor(Color expected, Color actual)
+        {
+            Assert.AreEqual(expected.r, actual.r, 0.0001f);
+            Assert.AreEqual(expected.g, actual.g, 0.0001f);
+            Assert.AreEqual(expected.b, actual.b, 0.0001f);
+            Assert.AreEqual(expected.a, actual.a, 0.0001f);
         }
 
         private static void Destroy(Object target)

@@ -2,7 +2,123 @@
 
 ## Current Goal
 
-Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, ingredient source rows center themselves from CSV counts, the hand/arm cursor is prefab-backed, and `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms instead of duplicated spacing/count numbers.
+Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, ingredient source rows center themselves from CSV counts, the hand/arm cursor is prefab-backed, `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms, and rolling is a small mouse/touch drag progress script without roll-guide runtime visuals.
+
+## 2026-06-27 Kitchen Ingredient Resource Sprite Auto-Apply
+
+- Added `KitchenIngredientSpriteLoader` for visible ingredient sprites.
+  - Explicit `이미지` values are tried first.
+  - Blank `이미지` values fall back to the row `이름`, then `Index`.
+  - Resources search supports direct paths such as `Kitchen/단무지`, exact sprite-sheet sub-sprite names such as `sheet_0`, and root lookup under `Kitchen` and `Kitchen/재료`.
+  - Explicit missing image values log a warning and fall back to the existing placeholder color path.
+- Extended `KitchenIngredientDefinition` with `VisualSprite`.
+  - `KitchenIngredientCatalogItem.ToDefinition()` now resolves `ImageName` / `DisplayName` / `Id` into `VisualSprite`.
+  - Existing constructors remain compatible for tests and scene/prefab serialized definitions.
+- Updated `KitchenIngredientSource`.
+  - Source `ingredientRenderer` uses `VisualSprite` with `Color.white` when available.
+  - Drag preview renderers use the same `VisualSprite`, so dropped seaweed/fillings get the sheet image.
+  - `KitchenRollSeaweedCover` already copies the source seaweed renderer, so the cover inherits the seaweed image automatically.
+- Updated tests.
+  - `KitchenIngredientCatalogTests` covers image-column conversion, direct Resources path lookup, blank display-name fallback, sprite-sheet sub-sprite lookup, and missing explicit image fallback.
+  - `KitchenIngredientTablePopulatorTests` covers source renderer sprite application and drag preview sprite application.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and the 2 existing `OrderSceneController` deprecation warnings.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+- Usage note:
+  - Ingredient images must live under `Assets/Resources/...` and be imported as `Sprite (2D and UI)`.
+  - For a direct image, put a Resources-relative path without extension in the sheet, e.g. `Kitchen/단무지`.
+  - For a sprite sheet sub-sprite, put the exact sub-sprite name, e.g. `sheet_0`; if `이미지` is blank, the loader tries the ingredient `이름`.
+
+## 2026-06-27 KitchenRollAnimator Child Seaweed Cover
+
+- Implemented the user-selected "extra seaweed object as child of original seaweed" cover approach.
+  - Added `KitchenRollSeaweedCover` helper on the drag preview root.
+  - Added inactive child `RollSeaweedCover` with a `SpriteRenderer` to `Assets/Prefabs/Kitchen/KitchenDragPreview.prefab`.
+  - The helper copies the source seaweed renderer sprite/color/flips/material/sorting layer, sets `localScale.y` from `0..1`, and offsets local y so the cover grows from the source sprite bottom.
+- Updated `KitchenRollAnimator`.
+  - Caches `KitchenRollSeaweedCover` from the current top seaweed snapshot.
+  - Shows the cover only when `rollProgress > 0`.
+  - Hides the cover when progress returns to `0`.
+  - Keeps the cover active at full height after `FinalizeRoll()`.
+  - Calculates cover sorting above current seaweed, dropped fillings, and rice surface without including the cover itself, avoiding per-frame sorting drift.
+- Updated tests.
+  - `KitchenRollAnimatorTests` now covers cover activation at progress, `localScale.y`, bottom anchoring, sorting above fillings, hiding after unroll, and full-height active cover after finalize.
+  - `KitchenSceneWiringTests` now verifies `KitchenDragPreview.prefab` has a root `KitchenRollSeaweedCover`, wired `coverRenderer`, and inactive `RollSeaweedCover` child.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 warnings and 0 errors.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
+## 2026-06-27 KitchenRollAnimator Filling Snapshot Refresh Fix
+
+- Confirmed the exact runtime cause from Unity `Editor.log`.
+  - `KitchenRollAnimator` captured a roll snapshot right after seaweed registration with `DroppedFillingObjects count=0` and `snapshotFillingCount=0`.
+  - Later filling registrations increased `DroppedFillingObjects` to 3, but the roller did not log a refreshed snapshot because `CaptureSnapshot()` returned early for the same top seaweed.
+- Changed `KitchenRollAnimator.CaptureSnapshot()`.
+  - Seaweed pose/bounds/sorting snapshot is captured only when the top seaweed changes.
+  - Filling snapshot is refreshed from current `controller.DroppedFillingObjects` even when the same seaweed remains active.
+  - To avoid per-frame drift while rolling, existing filling snapshots are reused when the non-null dropped filling transform sequence has not changed.
+- Added regression coverage in `KitchenRollAnimatorTests`.
+  - The new test captures an initial seaweed-only snapshot, registers a filling afterward, then verifies `SetRollProgressForTests(0.5f)` compresses that late-registered filling's y position.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 warnings and 0 errors.
+  - `Assembly-CSharp.csproj` includes `Assets\Tests\EditMode\Kitchen\KitchenRollAnimatorTests.cs`, so the new test source compiled during the build.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
+## 2026-06-27 Kitchen Filling Registration Debugging
+
+- Added opt-in registration tracing on `KitchenController`.
+  - Inspector toggle: `logIngredientRegistrationDebug`.
+  - Inspector counters: `debugDroppedFillingCount`, `debugTopSeaweedName`, `debugLastRegisteredObjectName`.
+  - Counters update from `ResetPreparation()` and `RegisterDroppedObject()` only.
+- Added debug logs along the drop/register/roll snapshot path.
+  - `KitchenDraggableItem.Drop()` logs drop rejection, `TryAddIngredient` failure, and successful `RegisterDroppedObject` calls through `KitchenController.LogRegistrationDebug`.
+  - `KitchenController.RegisterDroppedObject()` logs seaweed top updates, filling list registration, and non-filling categories that are not tracked for rolling.
+  - `KitchenRollAnimator.CaptureSnapshot()` logs current top seaweed, `DroppedFillingObjects` count, snapshot filling count, and skipped null fillings.
+- Updated tests:
+  - `KitchenControllerTests` now verifies filling debug count/name values and reset clearing.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 existing warnings in `OrderSceneController`.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - Static grep confirmed the new registration logs route through `logIngredientRegistrationDebug` / `LogRegistrationDebug`.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
+## 2026-06-27 Kitchen Drag-Based Rolling
+
+- Replaced `KitchenRollAnimator`'s RollButton/coroutine flow with pointer-driven `rollProgress`, then minimized it by removing the roll-guide visual path.
+  - Drag starts only from the lower area of the current top seaweed bounds.
+  - Dragging upward increases `rollProgress`; releasing below the completion threshold decreases progress by serialized `unrollSpeed`.
+  - Reaching the serialized completion threshold holds the ready state so `CompleteButton` can be pressed.
+- Removed roll-guide runtime visuals from `KitchenRollAnimator`.
+  - `rollGuidePrefab`, roll guide instantiation/destruction, roll guide renderer state, and roll guide test accessors are gone.
+  - `kitchen.unity` no longer serializes a roll guide reference on `KitchenRollAnimator`.
+  - `KitchenSceneWiringTests` now checks only `controller`, `targetCamera`, `completeButton`, and `submitButton` for the roller.
+- Removed production completed-preview construction.
+  - `completedKimbapPrefab`, `completedFillingCapPrefab`, `CreateCompletedKimbap`, and `CreateRectChild` are gone from production kitchen code/scene.
+  - `kitchen.unity` no longer has a `RollButton` scene object or `rollButton` serialized reference.
+  - Completion now reuses existing objects: the top seaweed becomes the final visible body, rice surface is hidden, and dropped fillings keep x/scale/rotation while only y is compressed.
+- New serialized tuning on `KitchenRollAnimator`:
+  - `targetCamera`, `dragStartBottomRatio`, `dragDistanceToFullRoll`, `unrollSpeed`, `completeProgressThreshold`, `finalSeaweedSizeRatio`, `finalFillingYScale`.
+- Filling y compression contract:
+  - `finalSeaweedSizeRatio.y` defaults to `0.5`.
+  - `finalFillingYScale` defaults to `0.5`.
+  - Each filling stores its original y and moves by `Lerp(originalY, finalSeaweedCenterY + (originalY - originalSeaweedCenterY) * finalFillingYScale, rollProgress)`.
+  - Fillings are not captured into roll-guide slots and are not evenly redistributed; original x/scale/rotation and side protrusion are preserved during roll, unroll, and completion.
+- Updated tests:
+  - `KitchenRollAnimatorTests` now covers bottom-area drag start, rejected outside starts, unroll on release, progress-based filling y compression, filling y returning during unroll, final y-only compression, rice hiding, and no completed preview object creation.
+  - `KitchenSceneWiringTests` now checks `targetCamera`, `completeButton`, and `submitButton`; old roll guide/completed prefab references are no longer expected.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 existing warnings in `OrderSceneController`.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - Static grep confirmed `RollButton`, `rollButton`, `PlayRoll`, `RollRoutine`, old duration fields, completed-preview prefab fields, and completed-preview creation methods no longer remain in production kitchen scripts or `kitchen.unity`.
+  - Static grep confirmed old filling slot/capture tuning symbols `CapturedFilling`, `CaptureOverlapping`, `MoveCaptured`, `ArrangeFinalFillings`, `finalFillingVerticalInset`, and `finalFillingHeightScale` no longer remain in kitchen scripts, scene, or EditMode tests.
+  - Static grep confirmed `KitchenRollAnimator` no longer contains `Instantiate`, `Destroy`, `rollGuidePrefab`, completed-preview symbols, or roll-guide test accessors.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
 
 ## 2026-06-27 Kitchen Ingredient Category Column Limits
 

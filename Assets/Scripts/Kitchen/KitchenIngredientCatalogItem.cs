@@ -107,8 +107,18 @@ namespace KimbapGame.Kitchen
             Color placeholderColor,
             Func<string, Texture2D> brushTextureResolver)
         {
+            return ToDefinition(dragPrefab, placeholderColor, brushTextureResolver, KitchenIngredientSpriteLoader.Load);
+        }
+
+        public KitchenIngredientDefinition ToDefinition(
+            GameObject dragPrefab,
+            Color placeholderColor,
+            Func<string, Texture2D> brushTextureResolver,
+            Func<string, string, string, Sprite> visualSpriteResolver)
+        {
             IngredientType ingredientType = IngredientTypeMapper.ToIngredientType(DisplayName, GetFallbackIngredientType());
             SpreadBrushDefinition riceBrushDefinition = CreateRiceBrushDefinition(placeholderColor, brushTextureResolver);
+            Sprite visualSprite = visualSpriteResolver == null ? null : visualSpriteResolver(ImageName, DisplayName, Id);
             return new KitchenIngredientDefinition(
                 Id,
                 DisplayName,
@@ -116,6 +126,7 @@ namespace KimbapGame.Kitchen
                 Category,
                 placeholderColor,
                 dragPrefab,
+                visualSprite,
                 riceBrushDefinition == null ? string.Empty : riceBrushDefinition.Id,
                 riceBrushDefinition);
         }

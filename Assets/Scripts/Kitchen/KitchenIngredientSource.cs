@@ -103,6 +103,13 @@ namespace KimbapGame.Kitchen
 
             if (ingredientRenderer != null)
             {
+                if (definition.VisualSprite != null)
+                {
+                    ingredientRenderer.sprite = definition.VisualSprite;
+                    ingredientRenderer.color = Color.white;
+                    return;
+                }
+
                 if (ingredientRenderer.sprite == null)
                 {
                     ingredientRenderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
@@ -117,6 +124,13 @@ namespace KimbapGame.Kitchen
             SpriteRenderer[] renderers = preview.GetComponentsInChildren<SpriteRenderer>();
             for (int i = 0; i < renderers.Length; i++)
             {
+                if (definition.VisualSprite != null)
+                {
+                    renderers[i].sprite = definition.VisualSprite;
+                    renderers[i].color = Color.white;
+                    continue;
+                }
+
                 if (renderers[i].sprite == null)
                 {
                     renderers[i].sprite = KitchenPlaceholderFactory.CreateWhiteSprite();

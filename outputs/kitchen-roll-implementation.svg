@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="840" viewBox="0 0 1280 840">
+  <defs>
+    <style>
+      .bg { fill: #f7f3ea; }
+      .panel { fill: #ffffff; stroke: #d8cdb9; stroke-width: 2; rx: 12; }
+      .node { fill: #fffaf1; stroke: #a8834a; stroke-width: 2; rx: 10; }
+      .data { fill: #eef7ff; stroke: #4e8ab8; stroke-width: 2; rx: 10; }
+      .prefab { fill: #eff8ee; stroke: #5c9b58; stroke-width: 2; rx: 10; }
+      .warn { fill: #fff2ed; stroke: #d86a4b; stroke-width: 2; rx: 10; }
+      .phase { fill: #fcf6d9; stroke: #d6aa2f; stroke-width: 2; rx: 10; }
+      .text { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; fill: #2b2620; font-size: 18px; }
+      .small { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; fill: #50483d; font-size: 14px; }
+      .tiny { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; fill: #5a5147; font-size: 12px; }
+      .title { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; fill: #1f1b16; font-size: 30px; font-weight: 700; }
+      .subtitle { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; fill: #5a5147; font-size: 16px; }
+      .code { font-family: Consolas, "Courier New", monospace; fill: #3b342d; font-size: 13px; }
+      .arrow { stroke: #6c5d4d; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .arrowBlue { stroke: #4e8ab8; stroke-width: 2.5; fill: none; marker-end: url(#arrowBlue); }
+      .arrowGreen { stroke: #5c9b58; stroke-width: 2.5; fill: none; marker-end: url(#arrowGreen); }
+      .arrowWarn { stroke: #d86a4b; stroke-width: 2.5; fill: none; marker-end: url(#arrowWarn); }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#6c5d4d" />
+    </marker>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#4e8ab8" />
+    </marker>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#5c9b58" />
+    </marker>
+    <marker id="arrowWarn" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#d86a4b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1280" height="840" />
+  <text class="title" x="48" y="54">KitchenRollAnimator: 현재 김밥 마는 기능 구조</text>
+  <text class="subtitle" x="50" y="82">기준 파일: Assets/Scripts/Kitchen/KitchenRollAnimator.cs, KitchenController.cs, Assets/Scenes/kitchen.unity</text>
+
+  <rect class="panel" x="40" y="112" width="348" height="650" />
+  <text class="text" x="66" y="146">1. 준비 데이터</text>
+
+  <rect class="data" x="66" y="174" width="296" height="92" />
+  <text class="text" x="84" y="204">KitchenController</text>
+  <text class="small" x="84" y="228">TopSeaweedObject</text>
+  <text class="small" x="84" y="248">CurrentRiceSurface</text>
+
+  <rect class="data" x="66" y="292" width="296" height="92" />
+  <text class="text" x="84" y="322">DroppedFillingObjects</text>
+  <text class="small" x="84" y="346">떨어뜨린 속재료 GameObject 목록</text>
+  <text class="small" x="84" y="366">Renderer bounds/color를 캐싱</text>
+
+  <rect class="prefab" x="66" y="410" width="296" height="132" />
+  <text class="text" x="84" y="440">씬에서 연결된 Prefab</text>
+  <text class="small" x="84" y="464">rollGuidePrefab</text>
+  <text class="small" x="84" y="486">completedKimbapPrefab</text>
+  <text class="small" x="84" y="508">completedFillingCapPrefab</text>
+
+  <rect class="node" x="66" y="568" width="296" height="124" />
+  <text class="text" x="84" y="598">버튼 상태</text>
+  <text class="small" x="84" y="622">RollButton 클릭: 말기 시작</text>
+  <text class="small" x="84" y="644">완료 후 CompleteButton 표시</text>
+  <text class="small" x="84" y="666">Complete 후 SubmitButton 표시</text>
+
+  <rect class="panel" x="452" y="112" width="380" height="650" />
+  <text class="text" x="478" y="146">2. RollButton 클릭 후 애니메이션</text>
+
+  <rect class="node" x="478" y="174" width="328" height="76" />
+  <text class="text" x="496" y="203">HandleRollClicked()</text>
+  <text class="small" x="496" y="226">RollButton 비활성화 후 PlayRoll 호출</text>
+
+  <rect class="node" x="478" y="284" width="328" height="104" />
+  <text class="text" x="496" y="313">PrepareRollVisual()</text>
+  <text class="small" x="496" y="337">김 bounds / 위치 / scale 저장</text>
+  <text class="small" x="496" y="359">속재료 renderer 상태 캐싱</text>
+  <text class="small" x="496" y="381">rollGuidePrefab Instantiate</text>
+
+  <rect class="phase" x="478" y="426" width="328" height="100" />
+  <text class="text" x="496" y="455">Grow phase</text>
+  <text class="small" x="496" y="479">rollHeight: 0 -> 김 높이 / 3</text>
+  <text class="small" x="496" y="501">SetRollRect(height, 0)</text>
+
+  <rect class="phase" x="478" y="562" width="328" height="122" />
+  <text class="text" x="496" y="591">Move phase</text>
+  <text class="small" x="496" y="615">SetRollRect(rollHeight, t)</text>
+  <text class="small" x="496" y="637">아래쪽에서 위쪽으로 롤 가이드 이동</text>
+  <text class="small" x="496" y="659">ApplySeaweedRemaining(1 - t)</text>
+
+  <path class="arrow" d="M642 250 L642 284" />
+  <path class="arrow" d="M642 388 L642 426" />
+  <path class="arrow" d="M642 526 L642 562" />
+
+  <rect class="panel" x="896" y="112" width="334" height="650" />
+  <text class="text" x="922" y="146">3. 매 프레임 처리와 완료</text>
+
+  <rect class="node" x="922" y="174" width="282" height="116" />
+  <text class="text" x="940" y="203">CaptureOverlappingFillings()</text>
+  <text class="small" x="940" y="227">rollRenderer.bounds 와</text>
+  <text class="small" x="940" y="249">속재료 renderer.bounds 교차 검사</text>
+  <text class="small" x="940" y="271">캡처되면 slotIndex 부여</text>
+
+  <rect class="node" x="922" y="324" width="282" height="116" />
+  <text class="text" x="940" y="353">MoveCapturedFillings()</text>
+  <text class="small" x="940" y="377">캡처된 속재료를 롤 중앙 근처로 이동</text>
+  <text class="small" x="940" y="399">여러 개면 y slot으로 분산</text>
+  <text class="small" x="940" y="421">sortingOrder는 롤 아래로 조정</text>
+
+  <rect class="node" x="922" y="474" width="282" height="96" />
+  <text class="text" x="940" y="503">FinalizeRoll()</text>
+  <text class="small" x="940" y="527">롤/평평한 김/쌀표면/원본 속재료 숨김</text>
+  <text class="small" x="940" y="549">완성 프리뷰 생성</text>
+
+  <rect class="prefab" x="922" y="604" width="282" height="76" />
+  <text class="text" x="940" y="633">CreateFillingStrips()</text>
+  <text class="small" x="940" y="657">속재료 줄은 cap prefab Instantiate</text>
+
+  <rect class="warn" x="922" y="704" width="282" height="44" />
+  <text class="small" x="940" y="731">현재 몸통은 new GameObject + AddComponent</text>
+
+  <path class="arrowBlue" d="M832 233 C860 233 882 233 922 233" />
+  <path class="arrowBlue" d="M832 383 C860 383 882 383 922 383" />
+  <path class="arrow" d="M1063 290 L1063 324" />
+  <path class="arrow" d="M1063 440 L1063 474" />
+  <path class="arrowGreen" d="M1063 570 L1063 604" />
+  <path class="arrowWarn" d="M1063 680 L1063 704" />
+
+  <path class="arrowBlue" d="M362 220 C418 220 426 212 478 212" />
+  <path class="arrowGreen" d="M362 476 C422 476 418 336 478 336" />
+  <path class="arrow" d="M362 630 C424 630 414 212 478 212" />
+
+  <rect class="panel" x="58" y="782" width="1154" height="38" />
+  <text class="tiny" x="76" y="805">요약: RollButton -> rollGuidePrefab으로 노란 롤 영역 생성 -> bounds 교차로 속재료 캡처 -> 롤이 위로 이동하며 김을 줄임 -> CompleteButton -> 원본을 숨기고 완성 프리뷰를 생성한다.</text>
+</svg>

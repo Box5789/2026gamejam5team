@@ -100,6 +100,38 @@ namespace KimbapGame.Tests.Kitchen
         }
 
         [Test]
+        public void SheetRows_ConvertImageColumnToVisualSprite()
+        {
+            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), Vector2.one * 0.5f, 1f);
+            KitchenIngredientCatalog catalog = KitchenIngredientCatalog.Parse(
+                "Index,이름,분류,가격,이미지,필수여부\n"
+                + "r31,floor,속,,Kitchen/floor,\n");
+
+            try
+            {
+                KitchenIngredientDefinition definition = catalog.Items[0].ToDefinition(
+                    null,
+                    Color.red,
+                    path => null,
+                    (imageName, displayName, variantId) =>
+                    {
+                        Assert.AreEqual("Kitchen/floor", imageName);
+                        Assert.AreEqual("floor", displayName);
+                        Assert.AreEqual("r31", variantId);
+                        return sprite;
+                    });
+
+                Assert.AreSame(sprite, definition.VisualSprite);
+            }
+            finally
+            {
+                Object.DestroyImmediate(sprite);
+                Object.DestroyImmediate(texture);
+            }
+        }
+
+        [Test]
         public void SheetRows_BlankRiceBrushColumnsUseBrushDefaults()
         {
             KitchenIngredientCatalog catalog = KitchenIngredientCatalog.Parse(
@@ -142,6 +174,41 @@ namespace KimbapGame.Tests.Kitchen
             Texture2D texture = KitchenRiceBrushTextureLoader.Load("Kitchen/Brushes/missing-rice");
 
             Assert.IsNull(texture);
+        }
+
+        [Test]
+        public void KitchenIngredientSpriteLoader_LoadsResourcesSpriteByPath()
+        {
+            Sprite sprite = KitchenIngredientSpriteLoader.Load("Kitchen/floor", string.Empty, string.Empty);
+
+            Assert.IsNotNull(sprite);
+            Assert.AreEqual("floor_0", sprite.name);
+        }
+
+        [Test]
+        public void KitchenIngredientSpriteLoader_UsesDisplayNameFallback()
+        {
+            Sprite sprite = KitchenIngredientSpriteLoader.Load(string.Empty, "floor", string.Empty);
+
+            Assert.IsNotNull(sprite);
+            Assert.AreEqual("floor_0", sprite.name);
+        }
+
+        [Test]
+        public void KitchenIngredientSpriteLoader_LoadsSpriteSheetSubSpriteByName()
+        {
+            Sprite sprite = KitchenIngredientSpriteLoader.Load("sheet_0", string.Empty, string.Empty);
+
+            Assert.IsNotNull(sprite);
+            Assert.AreEqual("sheet_0", sprite.name);
+        }
+
+        [Test]
+        public void KitchenIngredientSpriteLoader_MissingExplicitImageReturnsNull()
+        {
+            Sprite sprite = KitchenIngredientSpriteLoader.Load("Kitchen/missing-ingredient-sprite", string.Empty, string.Empty);
+
+            Assert.IsNull(sprite);
         }
 
         [Test]

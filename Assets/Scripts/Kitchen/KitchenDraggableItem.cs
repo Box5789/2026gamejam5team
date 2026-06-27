@@ -59,12 +59,15 @@ namespace KimbapGame.Kitchen
 
             if (dropZone == null || controller == null || definition == null || !dropZone.ContainsWorldPoint(transform.position))
             {
+                LogRegistrationDebug($"Drop rejected before TryAddIngredient. reason='{GetDropRejectReason()}' object='{name}'");
                 Destroy(gameObject);
                 return;
             }
 
             if (!controller.TryAddIngredient(definition))
             {
+                LogRegistrationDebug(
+                    $"TryAddIngredient failed category='{definition.Category}' ingredient='{definition.DisplayName}' state='{controller.GetRegistrationDebugSummary(definition)}' object='{name}'");
                 Destroy(gameObject);
                 return;
             }
@@ -74,6 +77,8 @@ namespace KimbapGame.Kitchen
                 ? dropZone.GetCenterWorldPoint()
                 : dropZone.GetSnappedWorldPoint(transform.position);
             int droppedSortingOrder = controller.RegisterDroppedObject(definition, gameObject);
+            LogRegistrationDebug(
+                $"Drop registered category='{definition.Category}' ingredient='{definition.DisplayName}' object='{name}' sorting={droppedSortingOrder}");
             ApplySortingOrder(droppedSortingOrder);
 
             Collider2D itemCollider = GetComponent<Collider2D>();
@@ -81,6 +86,34 @@ namespace KimbapGame.Kitchen
             {
                 itemCollider.enabled = false;
             }
+        }
+
+        private void LogRegistrationDebug(string message)
+        {
+            if (controller != null)
+            {
+                controller.LogRegistrationDebug(message, this);
+            }
+        }
+
+        private string GetDropRejectReason()
+        {
+            if (controller == null)
+            {
+                return "controller=null";
+            }
+
+            if (dropZone == null)
+            {
+                return "dropZone=null";
+            }
+
+            if (definition == null)
+            {
+                return "definition=null";
+            }
+
+            return dropZone.ContainsWorldPoint(transform.position) ? "unknown" : "outside-drop-zone";
         }
 
         private void ApplySortingOrder(int sortingOrder)
