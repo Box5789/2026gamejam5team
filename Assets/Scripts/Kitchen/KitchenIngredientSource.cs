@@ -6,6 +6,8 @@ namespace KimbapGame.Kitchen
     [RequireComponent(typeof(Collider2D))]
     public sealed class KitchenIngredientSource : MonoBehaviour
     {
+        private const float MinimumPickupColliderSize = 0.01f;
+
         [SerializeField] private KitchenIngredientDefinition definition;
         [SerializeField] private KitchenController controller;
         [SerializeField] private KitchenDropZone dropZone;
@@ -22,6 +24,7 @@ namespace KimbapGame.Kitchen
             }
 
             ApplyPlaceholderVisuals();
+            AlignPickupColliderToIngredientRenderer();
         }
 
         public void Configure(
@@ -37,6 +40,7 @@ namespace KimbapGame.Kitchen
             this.targetCamera = targetCamera;
             this.dragPreviewSize = dragPreviewSize;
             ApplyPlaceholderVisuals();
+            AlignPickupColliderToIngredientRenderer();
         }
 
         private void OnMouseDown()
@@ -74,7 +78,7 @@ namespace KimbapGame.Kitchen
 
             GameObject preview = Instantiate(definition.DragPrefab);
             preview.name = $"{definition.DisplayName}_DragPreview";
-            preview.transform.position = transform.position + new Vector3(0f, -0.45f, -1f);
+            preview.transform.position = GetPickupWorldCenterWithPreviewDepth();
             preview.transform.localScale = new Vector3(dragPreviewSize.x, dragPreviewSize.y, 1f);
             ApplyPreviewVisuals(preview);
 
@@ -117,6 +121,68 @@ namespace KimbapGame.Kitchen
 
                 ingredientRenderer.color = definition.PlaceholderColor;
             }
+        }
+
+        private void AlignPickupColliderToIngredientRenderer()
+        {
+            var pickupCollider = GetComponent<BoxCollider2D>();
+            if (pickupCollider == null || ingredientRenderer == null || ingredientRenderer.sprite == null)
+            {
+                return;
+            }
+
+            Bounds sourceLocalBounds = GetRendererBoundsInSourceLocal(ingredientRenderer);
+            Vector3 size = sourceLocalBounds.size;
+            if (size.x <= 0f || size.y <= 0f)
+            {
+                return;
+            }
+
+            pickupCollider.offset = new Vector2(sourceLocalBounds.center.x, sourceLocalBounds.center.y);
+            pickupCollider.size = new Vector2(
+                Mathf.Max(size.x, MinimumPickupColliderSize),
+                Mathf.Max(size.y, MinimumPickupColliderSize));
+        }
+
+        private Bounds GetRendererBoundsInSourceLocal(SpriteRenderer renderer)
+        {
+            Bounds spriteBounds = renderer.sprite.bounds;
+            Vector3 min = spriteBounds.min;
+            Vector3 max = spriteBounds.max;
+            if (renderer.flipX)
+            {
+                float originalMinX = min.x;
+                min.x = -max.x;
+                max.x = -originalMinX;
+            }
+
+            if (renderer.flipY)
+            {
+                float originalMinY = min.y;
+                min.y = -max.y;
+                max.y = -originalMinY;
+            }
+
+            Vector3 firstPoint = TransformRendererLocalPoint(renderer.transform, new Vector3(min.x, min.y, 0f));
+            Bounds bounds = new Bounds(firstPoint, Vector3.zero);
+            bounds.Encapsulate(TransformRendererLocalPoint(renderer.transform, new Vector3(min.x, max.y, 0f)));
+            bounds.Encapsulate(TransformRendererLocalPoint(renderer.transform, new Vector3(max.x, min.y, 0f)));
+            bounds.Encapsulate(TransformRendererLocalPoint(renderer.transform, new Vector3(max.x, max.y, 0f)));
+            return bounds;
+        }
+
+        private Vector3 TransformRendererLocalPoint(Transform rendererTransform, Vector3 rendererLocalPoint)
+        {
+            return transform.InverseTransformPoint(rendererTransform.TransformPoint(rendererLocalPoint));
+        }
+
+        private Vector3 GetPickupWorldCenterWithPreviewDepth()
+        {
+            Vector3 position = ingredientRenderer != null && ingredientRenderer.sprite != null
+                ? ingredientRenderer.bounds.center
+                : transform.position;
+            position.z = transform.position.z - 1f;
+            return position;
         }
 
         private void ApplyPreviewVisuals(GameObject preview)

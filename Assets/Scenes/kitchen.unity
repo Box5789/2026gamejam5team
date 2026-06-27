@@ -601,10 +601,11 @@ MonoBehaviour:
   resultFileName: KimbapResults.xlsx
   droppedSortingBase: 30
   riceSurfaceLocalZ: -0.05
+  riceSurfaceSeaweedSizeRatio: {x: 0.92, y: 0.78}
   logIngredientRegistrationDebug: 0
   debugDroppedFillingCount: 0
-  debugTopSeaweedName:
-  debugLastRegisteredObjectName:
+  debugTopSeaweedName: 
+  debugLastRegisteredObjectName: 
 --- !u!1 &131000
 GameObject:
   m_ObjectHideFlags: 0
@@ -1040,11 +1041,45 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ingredientsCsvRelativePath: Kitchen/ingredients.csv
-  sourcePrefab: {fileID: 100003, guid: 6d8cdd306e842104f989ac5a19598e3d, type: 3}
+  seaweedSettings:
+    tableRoot: {fileID: 151001}
+    sourcePrefab: {fileID: 100003, guid: 8f2a0d1c6bde4cc9a81428b61fd7e221, type: 3}
+    rowCenter: {x: 0, y: 2, z: -0.2}
+    spacing: {x: 1.22, y: -0.8}
+    itemsPerRow: 11
+    localScale: {x: 1, y: 1, z: 1}
+    dragPreviewSize: {x: 1, y: 1}
+    placeholderColor: {r: 0.08, g: 0.16, b: 0.11, a: 1}
+    sourceSortingOrderBase: 4
+    sourceSortingOrderStep: 10
+  riceSettings:
+    tableRoot: {fileID: 152001}
+    sourcePrefab: {fileID: 100003, guid: 0ad7dc3a6fd44f4a90ab1cf4aa8ec2db, type: 3}
+    rowCenter: {x: 0, y: 2, z: -0.2}
+    spacing: {x: 1.1, y: -0.8}
+    itemsPerRow: 7
+    localScale: {x: 1, y: 1, z: 1}
+    dragPreviewSize: {x: 1, y: 1}
+    placeholderColor: {r: 1, g: 0.97, b: 0.86, a: 1}
+    sourceSortingOrderBase: 4
+    sourceSortingOrderStep: 10
+  fillingSettings:
+    tableRoot: {fileID: 153001}
+    sourcePrefab: {fileID: 100003, guid: a8f85ff8bd874cb1a4c9ee2eaf55dc16, type: 3}
+    rowCenter: {x: 0, y: 2, z: -0.2}
+    spacing: {x: 1.1, y: -0.8}
+    itemsPerRow: 11
+    localScale: {x: 1, y: 1, z: 1}
+    dragPreviewSize: {x: 1, y: 1}
+    placeholderColor: {r: 0.95, g: 0.44, b: 0.42, a: 1}
+    sourceSortingOrderBase: 4
+    sourceSortingOrderStep: 10
   dragPreviewPrefab: {fileID: 100000, guid: 62aa0036fb4e0014aa2a1b9e0faf8a6b, type: 3}
   controller: {fileID: 130002}
   dropZone: {fileID: 143002}
   targetCamera: {fileID: 100002}
+  CompleteTableRoot: {fileID: 154001}
+  sourcePrefab: {fileID: 100003, guid: 6d8cdd306e842104f989ac5a19598e3d, type: 3}
   seaweedTableRoot: {fileID: 151001}
   riceTableRoot: {fileID: 152001}
   fillingTableRoot: {fileID: 153001}
@@ -1060,7 +1095,6 @@ MonoBehaviour:
   seaweedColor: {r: 0.08, g: 0.16, b: 0.11, a: 1}
   riceColor: {r: 1, g: 0.97, b: 0.86, a: 1}
   fillingColor: {r: 0.95, g: 0.44, b: 0.42, a: 1}
-  CompleteTableRoot: {fileID: 154001}
 --- !u!1 &151000
 GameObject:
   m_ObjectHideFlags: 0

@@ -4,6 +4,87 @@
 
 Keep the kitchen scene data-driven and scene-wired: ingredient sources and rice brush tuning come from the local ingredient CSV + prefabs, ingredient source rows center themselves from CSV counts, the hand/arm cursor is prefab-backed, `KitchenTableNavigator` moves according to `MovingTablesRoot` child table transforms, and rolling is a small mouse/touch drag progress script without roll-guide runtime visuals.
 
+## 2026-06-28 Ingredient Source Renderer-Based Pickup
+
+- Changed table source pickup to follow the actual ingredient `SpriteRenderer`.
+  - `KitchenIngredientSource` now realigns the root `BoxCollider2D` after `Awake()` / `Configure()` using `ingredientRenderer.sprite.bounds` converted into source-root local space.
+  - If `ingredientRenderer`, sprite, or root `BoxCollider2D` is missing, the existing collider is left unchanged and no exception is thrown.
+  - Drag preview initial x/y position now starts from `ingredientRenderer.bounds.center`; the existing preview depth behavior is preserved with `source.transform.position.z - 1f`.
+- Preserved existing behavior:
+  - Rice source click still routes to `KitchenController.SelectRice()` and does not spawn a drag preview.
+  - Dragging, drop zone checks, CSV/image parsing, source sorting, and dropped ingredient sorting were not changed.
+- Updated tests:
+  - `KitchenIngredientTablePopulatorTests` covers collider alignment to a child renderer with offset/scale, visual-sprite re-alignment, drag preview spawn at renderer center, and rice no-preview click behavior.
+  - `KitchenSceneWiringTests` now checks the three table-specific source prefabs have root `BoxCollider2D` and wired `ingredientRenderer`.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and 2 existing `OrderSceneController` deprecation warnings.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Static prefab grep confirmed `KitchenSeaweedIngredientSource.prefab`, `KitchenRiceIngredientSource.prefab`, and `KitchenFillingIngredientSource.prefab` contain root `BoxCollider2D` and `ingredientRenderer` references.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
+## 2026-06-28 Table Source Spawn Sorting
+
+- Added table source sorting controls to `KitchenIngredientTablePopulator.TableSourceSettings`.
+  - `sourceSortingOrderBase` sets the first spawned source's base renderer order.
+  - `sourceSortingOrderStep` sets how much each later spawned source moves upward in sorting.
+  - Default scene values are base `4`, step `10` for seaweed, rice, and filling tables.
+- Runtime behavior:
+  - `KitchenIngredientTablePopulator` applies sorting after `KitchenIngredientSource.Configure()`.
+  - Same-table source index now drives sorting: index `0` starts at base, index `1` starts at `base + step`, etc.
+  - Internal prefab renderer offsets are preserved, so a prefab with renderers at `4, 5` becomes `14, 15` for index `1`.
+  - Dropped ingredient sorting still belongs to `KitchenController.RegisterDroppedObject()` and was not changed.
+- Updated tests:
+  - `KitchenIngredientTablePopulatorTests` covers later spawned sources rendering above earlier sources, preserved internal renderer offsets, and table-specific base/step values.
+  - `KitchenSceneWiringTests` checks each table settings group has a positive `sourceSortingOrderStep`.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 warnings and 0 errors.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
+## 2026-06-27 Table-Specific Ingredient Source Settings
+
+- Split table source prefabs by table.
+  - Added `KitchenSeaweedIngredientSource.prefab`, `KitchenRiceIngredientSource.prefab`, and `KitchenFillingIngredientSource.prefab`.
+  - The original `KitchenIngredientSource.prefab` remains as the common reference/template asset.
+- Refactored `KitchenIngredientTablePopulator`.
+  - Added serialized `TableSourceSettings` groups for seaweed, rice, and filling tables.
+  - Each group controls `tableRoot`, `sourcePrefab`, `rowCenter`, `spacing`, `itemsPerRow`, `localScale`, `dragPreviewSize`, and `placeholderColor`.
+  - Runtime spawning and Scene View gizmos now use the same settings object, so table-specific layout and gizmos stay aligned.
+  - Legacy top-level serialized fields are hidden and kept for fallback; if an old scene has empty settings, the old fields seed the new settings at runtime/editor gizmo time.
+- Updated `kitchen.unity`.
+  - The populator now explicitly references the three new table-specific source prefabs.
+  - Existing scene layout values were preserved in the new settings: center `(0, 2, -0.2)`, spacing `(1.1, -0.8)`, scale `(1, 1, 1)`, and row counts `11 / 7 / 11`.
+- Updated tests.
+  - `KitchenIngredientTablePopulatorTests` covers table-specific prefabs, independent scale/drag/color settings, centered rows, sauce exclusion, visual sprite application, drag preview sprite application, and legacy field fallback.
+  - `KitchenSceneWiringTests` verifies each settings group points at its table root and the expected table-specific prefab path.
+- Validation status:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 warnings and 0 errors.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
+## 2026-06-27 Rice Surface Seaweed Renderer Bounds Alignment
+
+- Changed the top seaweed rice paint surface to align from the dropped seaweed `SpriteRenderer` bounds instead of a hardcoded local rectangle.
+  - `KitchenController` now finds `TopSeaweedObject.GetComponent<SpriteRenderer>()`, then falls back to `GetComponentInChildren<SpriteRenderer>()`.
+  - The renderer sprite bounds are converted into the top seaweed local space, so root sprites, child sprites, non-centered pivots, and sprite-sheet slices can all drive the rice surface position.
+  - New tuning field: `riceSurfaceSeaweedSizeRatio`, default `(0.92, 0.78)`, keeps the paintable area slightly inset from the seaweed image.
+- Fixed the visible dark rectangle issue.
+  - `TopSeaweedRiceSurface` is still created, active, renderer-enabled, and wired to `SpreadableSurface` / `SpreadInputController`.
+  - Its initial `SurfaceColor` is now `Color.clear`, so rice only appears after brush painting writes pixels.
+- Preserved existing gameplay flow.
+  - `KitchenRicePaintBridge.SelectRice()` still applies the selected rice brush to the active surface.
+  - The rice surface remains a child of the dropped seaweed, so rolling movement/compression follows the seaweed and completion still hides the surface.
+- Updated `KitchenControllerTests`.
+  - Covers active transparent surface creation, renderer-bounds alignment, non-centered sprite pivots, painting on a transparent surface, second seaweed replacement, and rice brush application through `KitchenRicePaintBridge`.
+- Validation:
+  - `dotnet build 2026gamejam5team.sln --no-restore -v:minimal` passed with 0 errors and the 2 existing `OrderSceneController` deprecation warnings.
+  - Production grep `rg -n "new GameObject|AddComponent|GameObject\.Find|FindObjectOfType|Resources\.FindObjectsOfTypeAll|KitchenSceneBootstrap" Assets\Scripts\Kitchen Assets\Scenes\kitchen.unity` returned no matches.
+  - `git diff --check` passed; only Git line-ending conversion warnings were printed.
+  - Unity Editor processes were open, so batchmode EditMode tests were not run.
+
 ## 2026-06-27 Kitchen Ingredient Resource Sprite Auto-Apply
 
 - Added `KitchenIngredientSpriteLoader` for visible ingredient sprites.

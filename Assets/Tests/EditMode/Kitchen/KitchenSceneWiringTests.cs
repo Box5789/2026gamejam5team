@@ -10,7 +10,9 @@ namespace KimbapGame.Tests.Kitchen
     public sealed class KitchenSceneWiringTests
     {
         private const string KitchenScenePath = "Assets/Scenes/kitchen.unity";
-        private const string SourcePrefabPath = "Assets/Prefabs/Kitchen/KitchenIngredientSource.prefab";
+        private const string SeaweedSourcePrefabPath = "Assets/Prefabs/Kitchen/KitchenSeaweedIngredientSource.prefab";
+        private const string RiceSourcePrefabPath = "Assets/Prefabs/Kitchen/KitchenRiceIngredientSource.prefab";
+        private const string FillingSourcePrefabPath = "Assets/Prefabs/Kitchen/KitchenFillingIngredientSource.prefab";
         private const string DragPreviewPrefabPath = "Assets/Prefabs/Kitchen/KitchenDragPreview.prefab";
         private const string HandCursorPrefabPath = "Assets/Prefabs/Kitchen/KitchenHandCursor.prefab";
         private const string RemovedBootstrapGuid = "a6cdb1e799334b2c9ee5cd48966b7eca";
@@ -53,19 +55,17 @@ namespace KimbapGame.Tests.Kitchen
             AssertObjectReference(rollAnimator, "targetCamera");
             AssertObjectReference(rollAnimator, "completeButton");
             AssertObjectReference(rollAnimator, "submitButton");
-            AssertObjectReference(populator, "sourcePrefab");
             AssertObjectReference(populator, "dragPreviewPrefab");
             AssertObjectReference(populator, "controller");
             AssertObjectReference(populator, "dropZone");
             AssertObjectReference(populator, "targetCamera");
-            AssertObjectReference(populator, "seaweedTableRoot");
-            AssertObjectReference(populator, "riceTableRoot");
-            AssertObjectReference(populator, "fillingTableRoot");
-            AssertPositiveIntValue(populator, "seaweedItemsPerRow");
-            AssertPositiveIntValue(populator, "riceItemsPerRow");
-            AssertPositiveIntValue(populator, "fillingItemsPerRow");
             AssertStringValue(populator, "ingredientsCsvRelativePath", "Kitchen/ingredients.csv");
-            AssertPrefabReferencePath(populator, "sourcePrefab", SourcePrefabPath);
+            AssertTableSourceSettings(populator, "seaweedSettings", SeaweedSourcePrefabPath);
+            AssertTableSourceSettings(populator, "riceSettings", RiceSourcePrefabPath);
+            AssertTableSourceSettings(populator, "fillingSettings", FillingSourcePrefabPath);
+            AssertSourcePrefabPickupWiring(SeaweedSourcePrefabPath);
+            AssertSourcePrefabPickupWiring(RiceSourcePrefabPath);
+            AssertSourcePrefabPickupWiring(FillingSourcePrefabPath);
             AssertObjectReference(handCursor, "targetCamera");
             AssertObjectReference(handCursor, "armPivot");
             AssertObjectReference(handCursor, "handPivot");
@@ -102,6 +102,25 @@ namespace KimbapGame.Tests.Kitchen
             Assert.Greater(property.intValue, 0, $"{target.name}.{propertyPath} must be greater than zero.");
         }
 
+        private static void AssertPositiveVector2Value(Object target, string propertyPath)
+        {
+            SerializedObject serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyPath);
+            Assert.IsNotNull(property, $"{target.name}.{propertyPath} is missing.");
+            Assert.Greater(property.vector2Value.x, 0f, $"{target.name}.{propertyPath}.x must be greater than zero.");
+            Assert.Greater(property.vector2Value.y, 0f, $"{target.name}.{propertyPath}.y must be greater than zero.");
+        }
+
+        private static void AssertPositiveVector3Value(Object target, string propertyPath)
+        {
+            SerializedObject serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyPath);
+            Assert.IsNotNull(property, $"{target.name}.{propertyPath} is missing.");
+            Assert.Greater(property.vector3Value.x, 0f, $"{target.name}.{propertyPath}.x must be greater than zero.");
+            Assert.Greater(property.vector3Value.y, 0f, $"{target.name}.{propertyPath}.y must be greater than zero.");
+            Assert.Greater(property.vector3Value.z, 0f, $"{target.name}.{propertyPath}.z must be greater than zero.");
+        }
+
         private static void AssertPrefabReferencePath(Object target, string propertyPath, string expectedPath)
         {
             SerializedObject serializedObject = new SerializedObject(target);
@@ -109,6 +128,27 @@ namespace KimbapGame.Tests.Kitchen
             Assert.IsNotNull(property, $"{target.name}.{propertyPath} is missing.");
             Assert.IsNotNull(property.objectReferenceValue, $"{target.name}.{propertyPath} is not wired.");
             Assert.AreEqual(expectedPath, AssetDatabase.GetAssetPath(property.objectReferenceValue));
+        }
+
+        private static void AssertTableSourceSettings(Object target, string propertyPath, string expectedPrefabPath)
+        {
+            AssertObjectReference(target, $"{propertyPath}.tableRoot");
+            AssertPrefabReferencePath(target, $"{propertyPath}.sourcePrefab", expectedPrefabPath);
+            AssertPositiveIntValue(target, $"{propertyPath}.itemsPerRow");
+            AssertPositiveVector3Value(target, $"{propertyPath}.localScale");
+            AssertPositiveVector2Value(target, $"{propertyPath}.dragPreviewSize");
+            AssertPositiveIntValue(target, $"{propertyPath}.sourceSortingOrderStep");
+        }
+
+        private static void AssertSourcePrefabPickupWiring(string prefabPath)
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            Assert.IsNotNull(prefab, $"{prefabPath} must exist.");
+            Assert.IsNotNull(prefab.GetComponent<BoxCollider2D>(), $"{prefabPath} root must have a BoxCollider2D for source pickup.");
+
+            KitchenIngredientSource source = prefab.GetComponent<KitchenIngredientSource>();
+            Assert.IsNotNull(source, $"{prefabPath} root must have KitchenIngredientSource.");
+            AssertObjectReference(source, "ingredientRenderer");
         }
 
         private static void AssertPrefabInstanceRootPath(GameObject instance, string expectedPath)

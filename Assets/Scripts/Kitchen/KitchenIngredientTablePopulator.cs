@@ -10,28 +10,116 @@ namespace KimbapGame.Kitchen
     [DisallowMultipleComponent]
     public sealed class KitchenIngredientTablePopulator : MonoBehaviour
     {
+        [Serializable]
+        public sealed class TableSourceSettings
+        {
+            [SerializeField] private Transform tableRoot;
+            [SerializeField] private KitchenIngredientSource sourcePrefab;
+            [SerializeField] private Vector3 rowCenter = new Vector3(0f, 2.2f, -0.2f);
+            [SerializeField] private Vector2 spacing = new Vector2(1.05f, -0.85f);
+            [SerializeField, Min(1)] private int itemsPerRow = 6;
+            [SerializeField] private Vector3 localScale = new Vector3(0.78f, 0.48f, 1f);
+            [SerializeField] private Vector2 dragPreviewSize = new Vector2(2.2f, 0.45f);
+            [SerializeField] private Color placeholderColor = Color.white;
+            [SerializeField] private int sourceSortingOrderBase = 4;
+            [SerializeField, Min(1)] private int sourceSortingOrderStep = 10;
+
+            public Transform TableRoot => tableRoot;
+            public KitchenIngredientSource SourcePrefab => sourcePrefab;
+            public Vector3 LocalScale => localScale;
+            public Vector2 DragPreviewSize => dragPreviewSize;
+            public Color PlaceholderColor => placeholderColor;
+            public int SourceSortingOrderBase => sourceSortingOrderBase;
+            public int SourceSortingOrderStep => Mathf.Max(1, sourceSortingOrderStep);
+            public int ItemsPerRow => Mathf.Max(1, itemsPerRow);
+            public bool HasRequiredReferences => tableRoot != null && sourcePrefab != null;
+
+            public static TableSourceSettings Create(Vector2 dragPreviewSize, Color placeholderColor)
+            {
+                return new TableSourceSettings
+                {
+                    dragPreviewSize = dragPreviewSize,
+                    placeholderColor = placeholderColor
+                };
+            }
+
+            public void ApplyLegacyIfEmpty(
+                Transform legacyTableRoot,
+                KitchenIngredientSource legacySourcePrefab,
+                Vector3 legacyRowCenter,
+                Vector2 legacySpacing,
+                int legacyItemsPerRow,
+                Vector3 legacyLocalScale,
+                Vector2 legacyDragPreviewSize,
+                Color legacyPlaceholderColor)
+            {
+                if (tableRoot != null || sourcePrefab != null)
+                {
+                    return;
+                }
+
+                tableRoot = legacyTableRoot;
+                sourcePrefab = legacySourcePrefab;
+                rowCenter = legacyRowCenter;
+                spacing = legacySpacing;
+                itemsPerRow = Mathf.Max(1, legacyItemsPerRow);
+                localScale = legacyLocalScale;
+                dragPreviewSize = legacyDragPreviewSize;
+                placeholderColor = legacyPlaceholderColor;
+            }
+
+            public Vector3 GetSourceLocalPosition(int index, int totalCount)
+            {
+                int columns = ItemsPerRow;
+                int row = index / columns;
+                int column = index % columns;
+                int rowItemCount = Mathf.Min(columns, Mathf.Max(1, totalCount - (row * columns)));
+                float rowWidth = (rowItemCount - 1) * spacing.x;
+                float x = rowCenter.x - (rowWidth * 0.5f) + (spacing.x * column);
+                int rowCount = Mathf.CeilToInt(totalCount / (float)columns);
+                float rowOffset = row - ((rowCount - 1) * 0.5f);
+                float y = rowCenter.y + (spacing.y * rowOffset);
+                return new Vector3(x, y, rowCenter.z);
+            }
+
+            public int GetSourceSortingOrder(int index)
+            {
+                return sourceSortingOrderBase + (Mathf.Max(0, index) * SourceSortingOrderStep);
+            }
+        }
+
         [SerializeField] private string ingredientsCsvRelativePath = "Kitchen/ingredients.csv";
-        [SerializeField] private KitchenIngredientSource sourcePrefab;
+        [SerializeField] private TableSourceSettings seaweedSettings = TableSourceSettings.Create(
+            new Vector2(2.4f, 1.7f),
+            new Color(0.08f, 0.16f, 0.11f, 1f));
+        [SerializeField] private TableSourceSettings riceSettings = TableSourceSettings.Create(
+            new Vector2(2.8f, 0.28f),
+            new Color(1f, 0.97f, 0.86f, 1f));
+        [SerializeField] private TableSourceSettings fillingSettings = TableSourceSettings.Create(
+            new Vector2(2.8f, 0.28f),
+            new Color(0.95f, 0.44f, 0.42f, 1f));
         [SerializeField] private GameObject dragPreviewPrefab;
         [SerializeField] private KitchenController controller;
         [SerializeField] private KitchenDropZone dropZone;
         [SerializeField] private Camera targetCamera;
-        [SerializeField] private Transform seaweedTableRoot;
-        [SerializeField] private Transform riceTableRoot;
-        [SerializeField] private Transform fillingTableRoot;
-        [SerializeField] private Vector3 sourceRowCenter = new Vector3(0f, 2.2f, -0.2f);
-        [SerializeField] private Vector2 sourceSpacing = new Vector2(1.05f, -0.85f);
-        [SerializeField, Min(1)] private int seaweedItemsPerRow = 6;
-        [SerializeField, Min(1)] private int riceItemsPerRow = 6;
-        [SerializeField, Min(1)] private int fillingItemsPerRow = 6;
-        [SerializeField] private Vector3 sourceLocalScale = new Vector3(0.78f, 0.48f, 1f);
-        [SerializeField] private Vector2 seaweedDragPreviewSize = new Vector2(2.4f, 1.7f);
-        [SerializeField] private Vector2 riceDragPreviewSize = new Vector2(2.8f, 0.28f);
-        [SerializeField] private Vector2 fillingDragPreviewSize = new Vector2(2.8f, 0.28f);
-        [SerializeField] private Color seaweedColor = new Color(0.08f, 0.16f, 0.11f, 1f);
-        [SerializeField] private Color riceColor = new Color(1f, 0.97f, 0.86f, 1f);
-        [SerializeField] private Color fillingColor = new Color(0.95f, 0.44f, 0.42f, 1f);
         [SerializeField] private Transform CompleteTableRoot;
+        [SerializeField, HideInInspector] private KitchenIngredientSource sourcePrefab;
+        [SerializeField, HideInInspector] private Transform seaweedTableRoot;
+        [SerializeField, HideInInspector] private Transform riceTableRoot;
+        [SerializeField, HideInInspector] private Transform fillingTableRoot;
+        [SerializeField, HideInInspector] private Vector3 sourceRowCenter = new Vector3(0f, 2.2f, -0.2f);
+        [SerializeField, HideInInspector] private Vector2 sourceSpacing = new Vector2(1.05f, -0.85f);
+        [SerializeField, HideInInspector, Min(1)] private int seaweedItemsPerRow = 6;
+        [SerializeField, HideInInspector, Min(1)] private int riceItemsPerRow = 6;
+        [SerializeField, HideInInspector, Min(1)] private int fillingItemsPerRow = 6;
+        [SerializeField, HideInInspector] private Vector3 sourceLocalScale = new Vector3(0.78f, 0.48f, 1f);
+        [SerializeField, HideInInspector] private Vector2 seaweedDragPreviewSize = new Vector2(2.4f, 1.7f);
+        [SerializeField, HideInInspector] private Vector2 riceDragPreviewSize = new Vector2(2.8f, 0.28f);
+        [SerializeField, HideInInspector] private Vector2 fillingDragPreviewSize = new Vector2(2.8f, 0.28f);
+        [SerializeField, HideInInspector] private Color seaweedColor = new Color(0.08f, 0.16f, 0.11f, 1f);
+        [SerializeField, HideInInspector] private Color riceColor = new Color(1f, 0.97f, 0.86f, 1f);
+        [SerializeField, HideInInspector] private Color fillingColor = new Color(0.95f, 0.44f, 0.42f, 1f);
+
         private readonly List<KitchenIngredientSource> spawnedSources = new List<KitchenIngredientSource>();
 
         public IReadOnlyList<KitchenIngredientSource> SpawnedSources => spawnedSources;
@@ -67,6 +155,7 @@ namespace KimbapGame.Kitchen
 
         public void Populate(KitchenIngredientCatalog catalog)
         {
+            EnsureTableSettings();
             ClearSpawnedSources();
             if (catalog == null || !HasRequiredReferences())
             {
@@ -92,104 +181,79 @@ namespace KimbapGame.Kitchen
                 }
             }
 
-            SpawnSources(seaweedItems, seaweedTableRoot, KitchenIngredientCategory.Seaweed);
-            SpawnSources(riceItems, riceTableRoot, KitchenIngredientCategory.Rice);
-            SpawnSources(fillingItems, fillingTableRoot, KitchenIngredientCategory.Filling);
+            SpawnSources(seaweedItems, seaweedSettings);
+            SpawnSources(riceItems, riceSettings);
+            SpawnSources(fillingItems, fillingSettings);
         }
 
-        private void SpawnSources(
-            IReadOnlyList<KitchenIngredientCatalogItem> items,
-            Transform parent,
-            KitchenIngredientCategory category)
+        private void SpawnSources(IReadOnlyList<KitchenIngredientCatalogItem> items, TableSourceSettings settings)
         {
-            int columns = GetItemsPerRow(category);
+            if (settings == null || !settings.HasRequiredReferences)
+            {
+                return;
+            }
+
             for (int i = 0; i < items.Count; i++)
             {
-                SpawnSource(items[i], parent, i, items.Count, columns);
+                SpawnSource(items[i], settings, i, items.Count);
             }
         }
 
-        private void SpawnSource(KitchenIngredientCatalogItem item, Transform parent, int index, int totalCount, int columns)
+        private void SpawnSource(KitchenIngredientCatalogItem item, TableSourceSettings settings, int index, int totalCount)
         {
-            KitchenIngredientSource source = Instantiate(sourcePrefab, parent);
+            KitchenIngredientSource source = Instantiate(settings.SourcePrefab, settings.TableRoot);
             source.name = $"{item.DisplayName} Source";
-            source.transform.localPosition = GetSourceLocalPosition(index, totalCount, columns);
+            source.transform.localPosition = settings.GetSourceLocalPosition(index, totalCount);
             source.transform.localRotation = Quaternion.identity;
-            source.transform.localScale = sourceLocalScale;
+            source.transform.localScale = settings.LocalScale;
             source.Configure(
-                item.ToDefinition(dragPreviewPrefab, GetPlaceholderColor(item.Category)),
+                item.ToDefinition(dragPreviewPrefab, settings.PlaceholderColor),
                 controller,
                 dropZone,
                 targetCamera,
-                GetDragPreviewSize(item.Category));
+                settings.DragPreviewSize);
+            ApplySourceSortingOrder(source.gameObject, settings.GetSourceSortingOrder(index));
             spawnedSources.Add(source);
         }
 
-        private Vector3 GetSourceLocalPosition(int index, int totalCount, int columns)
+        private static void ApplySourceSortingOrder(GameObject sourceObject, int baseSortingOrder)
         {
-            columns = Mathf.Max(1, columns);
-            int row = index / columns;
-            int column = index % columns;
-            int rowItemCount = Mathf.Min(columns, Mathf.Max(1, totalCount - (row * columns)));
-            float rowWidth = (rowItemCount - 1) * sourceSpacing.x;
-            float x = sourceRowCenter.x - (rowWidth * 0.5f) + (sourceSpacing.x * column);
-            int rowCount = Mathf.CeilToInt(totalCount / (float)columns);
-            float rowOffset = row - ((rowCount - 1) * 0.5f);
-            float y = sourceRowCenter.y + (sourceSpacing.y * rowOffset);
-            return new Vector3(x, y, sourceRowCenter.z);
-        }
-
-        private int GetItemsPerRow(KitchenIngredientCategory category)
-        {
-            switch (category)
+            if (sourceObject == null)
             {
-                case KitchenIngredientCategory.Seaweed:
-                    return Mathf.Max(1, seaweedItemsPerRow);
-                case KitchenIngredientCategory.Rice:
-                    return Mathf.Max(1, riceItemsPerRow);
-                case KitchenIngredientCategory.Filling:
-                    return Mathf.Max(1, fillingItemsPerRow);
-                default:
-                    return 1;
+                return;
             }
-        }
 
-        private Vector2 GetDragPreviewSize(KitchenIngredientCategory category)
-        {
-            switch (category)
+            SpriteRenderer[] renderers = sourceObject.GetComponentsInChildren<SpriteRenderer>();
+            if (renderers.Length == 0)
             {
-                case KitchenIngredientCategory.Seaweed:
-                    return seaweedDragPreviewSize;
-                case KitchenIngredientCategory.Rice:
-                    return riceDragPreviewSize;
-                default:
-                    return fillingDragPreviewSize;
+                return;
             }
-        }
 
-        private Color GetPlaceholderColor(KitchenIngredientCategory category)
-        {
-            switch (category)
+            int minimumSortingOrder = renderers[0].sortingOrder;
+            for (int i = 1; i < renderers.Length; i++)
             {
-                case KitchenIngredientCategory.Seaweed:
-                    return seaweedColor;
-                case KitchenIngredientCategory.Rice:
-                    return riceColor;
-                default:
-                    return fillingColor;
+                minimumSortingOrder = Mathf.Min(minimumSortingOrder, renderers[i].sortingOrder);
+            }
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                renderers[i].sortingOrder = baseSortingOrder + (renderers[i].sortingOrder - minimumSortingOrder);
             }
         }
 
         private bool HasRequiredReferences()
         {
-            bool hasReferences = sourcePrefab != null
-                && dragPreviewPrefab != null
+            EnsureTableSettings();
+            bool hasReferences = dragPreviewPrefab != null
                 && controller != null
                 && dropZone != null
                 && targetCamera != null
-                && seaweedTableRoot != null
-                && riceTableRoot != null
-                && fillingTableRoot != null;
+                && seaweedSettings != null
+                && riceSettings != null
+                && fillingSettings != null
+                && seaweedSettings.HasRequiredReferences
+                && riceSettings.HasRequiredReferences
+                && fillingSettings.HasRequiredReferences;
 
             if (!hasReferences)
             {
@@ -231,53 +295,99 @@ namespace KimbapGame.Kitchen
             }
         }
 
+        private void EnsureTableSettings()
+        {
+            if (seaweedSettings == null)
+            {
+                seaweedSettings = TableSourceSettings.Create(seaweedDragPreviewSize, seaweedColor);
+            }
+
+            if (riceSettings == null)
+            {
+                riceSettings = TableSourceSettings.Create(riceDragPreviewSize, riceColor);
+            }
+
+            if (fillingSettings == null)
+            {
+                fillingSettings = TableSourceSettings.Create(fillingDragPreviewSize, fillingColor);
+            }
+
+            seaweedSettings.ApplyLegacyIfEmpty(
+                seaweedTableRoot,
+                sourcePrefab,
+                sourceRowCenter,
+                sourceSpacing,
+                seaweedItemsPerRow,
+                sourceLocalScale,
+                seaweedDragPreviewSize,
+                seaweedColor);
+            riceSettings.ApplyLegacyIfEmpty(
+                riceTableRoot,
+                sourcePrefab,
+                sourceRowCenter,
+                sourceSpacing,
+                riceItemsPerRow,
+                sourceLocalScale,
+                riceDragPreviewSize,
+                riceColor);
+            fillingSettings.ApplyLegacyIfEmpty(
+                fillingTableRoot,
+                sourcePrefab,
+                sourceRowCenter,
+                sourceSpacing,
+                fillingItemsPerRow,
+                sourceLocalScale,
+                fillingDragPreviewSize,
+                fillingColor);
+        }
+
         private void OnDrawGizmos()
         {
+            EnsureTableSettings();
             KitchenIngredientCatalog catalog = TryLoadLocalCatalogForGizmos();
-            DrawTableGizmos(seaweedTableRoot, KitchenIngredientCategory.Seaweed, catalog, Color.green);
-            DrawTableGizmos(riceTableRoot, KitchenIngredientCategory.Rice, catalog, Color.red);
-            DrawTableGizmos(fillingTableRoot, KitchenIngredientCategory.Filling, catalog, Color.yellow);
+            DrawTableGizmos(seaweedSettings, KitchenIngredientCategory.Seaweed, catalog, Color.green);
+            DrawTableGizmos(riceSettings, KitchenIngredientCategory.Rice, catalog, Color.red);
+            DrawTableGizmos(fillingSettings, KitchenIngredientCategory.Filling, catalog, Color.yellow);
             DrawCameraFrameGizmo(CompleteTableRoot);
         }
 
         private void DrawTableGizmos(
-            Transform tableRoot,
+            TableSourceSettings settings,
             KitchenIngredientCategory category,
             KitchenIngredientCatalog catalog,
             Color sourceColor)
         {
-            if (tableRoot == null)
+            if (settings == null || settings.TableRoot == null)
             {
                 return;
             }
 
-            int sourceCount = GetGizmoSourceCount(tableRoot, category, catalog);
-            int columns = GetItemsPerRow(category);
+            int sourceCount = GetGizmoSourceCount(settings, category, catalog);
             Matrix4x4 previousMatrix = Gizmos.matrix;
-            Gizmos.matrix = tableRoot.localToWorldMatrix;
+            Gizmos.matrix = settings.TableRoot.localToWorldMatrix;
             Gizmos.color = sourceColor;
             for (int i = 0; i < sourceCount; i++)
             {
-                Gizmos.DrawWireCube(GetSourceLocalPosition(i, sourceCount, columns), sourceLocalScale);
+                Gizmos.DrawWireCube(settings.GetSourceLocalPosition(i, sourceCount), settings.LocalScale);
             }
 
             Gizmos.matrix = previousMatrix;
-            DrawCameraFrameGizmo(tableRoot);
+            DrawCameraFrameGizmo(settings.TableRoot);
         }
 
         private int GetGizmoSourceCount(
-            Transform tableRoot,
+            TableSourceSettings settings,
             KitchenIngredientCategory category,
             KitchenIngredientCatalog catalog)
         {
-            if (tableRoot.childCount > 0)
+            if (settings.TableRoot.childCount > 0)
             {
-                return tableRoot.childCount;
+                return settings.TableRoot.childCount;
             }
 
             if (catalog == null)
             {
-                return GetItemsPerRow(category);
+                return settings.ItemsPerRow;
             }
 
             int count = 0;

@@ -20,6 +20,7 @@ namespace KimbapGame.Kitchen
         [SerializeField] private string resultFileName = "KimbapResults.xlsx";
         [SerializeField] private int droppedSortingBase = 30;
         [SerializeField] private float riceSurfaceLocalZ = -0.05f;
+        [SerializeField] private Vector2 riceSurfaceSeaweedSizeRatio = new Vector2(0.92f, 0.78f);
         [SerializeField] private bool logIngredientRegistrationDebug;
         [SerializeField] private int debugDroppedFillingCount;
         [SerializeField] private string debugTopSeaweedName = string.Empty;
@@ -178,7 +179,7 @@ namespace KimbapGame.Kitchen
             {
                 DestroyCurrentRiceSurface();
                 topSeaweedObject = droppedObject;
-                BuildRiceSurfaceOnTopSeaweed(definition.PlaceholderColor, sortingOrder + 1);
+                BuildRiceSurfaceOnTopSeaweed(sortingOrder + 1);
                 LogRegistrationDebug(
                     $"RegisterDroppedObject Seaweed top='{topSeaweedObject.name}' sorting={sortingOrder}",
                     droppedObject);
@@ -254,7 +255,7 @@ namespace KimbapGame.Kitchen
             return definition != null && maxCount > 0 && currentCount < maxCount;
         }
 
-        private void BuildRiceSurfaceOnTopSeaweed(Color surfaceColor, int sortingOrder)
+        private void BuildRiceSurfaceOnTopSeaweed(int sortingOrder)
         {
             if (topSeaweedObject == null)
             {
@@ -270,8 +271,7 @@ namespace KimbapGame.Kitchen
             GameObject surfaceObject = Instantiate(riceSurfacePrefab, topSeaweedObject.transform);
             surfaceObject.name = "TopSeaweedRiceSurface";
             surfaceObject.transform.SetParent(topSeaweedObject.transform, false);
-            surfaceObject.transform.localPosition = new Vector3(0f, 0f, riceSurfaceLocalZ);
-            surfaceObject.transform.localScale = new Vector3(0.92f, 0.78f, 1f);
+            AlignRiceSurfaceToSeaweedRenderer(surfaceObject.transform);
 
             SpriteRenderer renderer = surfaceObject.GetComponent<SpriteRenderer>();
             if (renderer != null)
@@ -295,8 +295,80 @@ namespace KimbapGame.Kitchen
                 return;
             }
 
-            currentRiceSurface.SetSurfaceColor(surfaceColor);
+            currentRiceSurface.SetSurfaceColor(Color.clear);
             currentRiceInputController.enabled = false;
+        }
+
+        private void AlignRiceSurfaceToSeaweedRenderer(Transform riceSurfaceTransform)
+        {
+            if (riceSurfaceTransform == null)
+            {
+                return;
+            }
+
+            Bounds seaweedLocalBounds = GetTopSeaweedRendererLocalBounds();
+            Vector2 ratio = new Vector2(
+                Mathf.Max(0.001f, riceSurfaceSeaweedSizeRatio.x),
+                Mathf.Max(0.001f, riceSurfaceSeaweedSizeRatio.y));
+            riceSurfaceTransform.localPosition = new Vector3(
+                seaweedLocalBounds.center.x,
+                seaweedLocalBounds.center.y,
+                riceSurfaceLocalZ);
+            riceSurfaceTransform.localRotation = Quaternion.identity;
+            riceSurfaceTransform.localScale = new Vector3(
+                Mathf.Max(0.001f, seaweedLocalBounds.size.x * ratio.x),
+                Mathf.Max(0.001f, seaweedLocalBounds.size.y * ratio.y),
+                1f);
+        }
+
+        private Bounds GetTopSeaweedRendererLocalBounds()
+        {
+            SpriteRenderer renderer = GetTopSeaweedRenderer();
+            if (renderer == null)
+            {
+                return new Bounds(Vector3.zero, Vector3.one);
+            }
+
+            Bounds spriteBounds = renderer.sprite == null
+                ? new Bounds(Vector3.zero, Vector3.one)
+                : renderer.sprite.bounds;
+            Transform seaweedTransform = topSeaweedObject.transform;
+            Vector3 min = spriteBounds.min;
+            Vector3 max = spriteBounds.max;
+            Vector3[] localCorners =
+            {
+                seaweedTransform.InverseTransformPoint(renderer.transform.TransformPoint(new Vector3(min.x, min.y, 0f))),
+                seaweedTransform.InverseTransformPoint(renderer.transform.TransformPoint(new Vector3(min.x, max.y, 0f))),
+                seaweedTransform.InverseTransformPoint(renderer.transform.TransformPoint(new Vector3(max.x, min.y, 0f))),
+                seaweedTransform.InverseTransformPoint(renderer.transform.TransformPoint(new Vector3(max.x, max.y, 0f)))
+            };
+
+            Vector3 localMin = localCorners[0];
+            Vector3 localMax = localCorners[0];
+            for (int i = 1; i < localCorners.Length; i++)
+            {
+                localMin = Vector3.Min(localMin, localCorners[i]);
+                localMax = Vector3.Max(localMax, localCorners[i]);
+            }
+
+            Bounds localBounds = new Bounds((localMin + localMax) * 0.5f, localMax - localMin);
+            if (Mathf.Approximately(localBounds.size.x, 0f) || Mathf.Approximately(localBounds.size.y, 0f))
+            {
+                return new Bounds(Vector3.zero, Vector3.one);
+            }
+
+            return localBounds;
+        }
+
+        private SpriteRenderer GetTopSeaweedRenderer()
+        {
+            if (topSeaweedObject == null)
+            {
+                return null;
+            }
+
+            SpriteRenderer renderer = topSeaweedObject.GetComponent<SpriteRenderer>();
+            return renderer != null ? renderer : topSeaweedObject.GetComponentInChildren<SpriteRenderer>();
         }
 
         private void DestroyCurrentRiceSurface()
