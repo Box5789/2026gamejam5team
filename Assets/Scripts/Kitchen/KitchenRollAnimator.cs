@@ -9,7 +9,7 @@ namespace KimbapGame.Kitchen
     [DisallowMultipleComponent]
     public sealed class KitchenRollAnimator : MonoBehaviour
     {
-        private const int EndCapSortingOrder = 158;
+        private const int FillingStripSortingOrder = 158;
         private const int BodySortingOrder = 160;
         private const int CapturedFillingSortingBase = 190;
         private const int RollSortingOrder = 220;
@@ -26,6 +26,11 @@ namespace KimbapGame.Kitchen
         [SerializeField] private float moveDuration = 0.8f;
         [SerializeField] private Color rollColor = new Color(1f, 0.78f, 0.18f, 1f);
         [SerializeField] private Color completedOuterColor = new Color(0.08f, 0.14f, 0.09f, 1f);
+        [SerializeField] private Vector3 completedPreviewLocalOffset = Vector3.zero;
+        [SerializeField] private Vector2 completedBodySizeRatio = new Vector2(0.92f, 0.36f);
+        [SerializeField] private float completedFillingWidthOffset = 0.1f;
+        [SerializeField] private float completedFillingVerticalInset = 0.05f;
+        [SerializeField] private float completedFillingHeightScale = 0.72f;
 
         private readonly List<FillingRollState> fillingStates = new List<FillingRollState>();
         private GameObject rollObject;
@@ -68,9 +73,17 @@ namespace KimbapGame.Kitchen
         {
             get
             {
+                return CompletedFillingStripCount;
+            }
+        }
+
+        public int CompletedFillingStripCount
+        {
+            get
+            {
                 return completedKimbapObject == null
                     ? 0
-                    : completedKimbapObject.GetComponentsInChildren<SpriteRenderer>(true).Length - 1;
+                    : CountCompletedFillingStrips(completedKimbapObject.transform);
             }
         }
 
@@ -467,67 +480,60 @@ namespace KimbapGame.Kitchen
             completedKimbapObject = Instantiate(completedKimbapPrefab, parent, true);
             completedKimbapObject.name = "CompletedKimbapPreview";
             completedKimbapObject.transform.position = new Vector3(bounds.center.x, bounds.center.y, originalSeaweedPosition.z - 0.25f);
+            completedKimbapObject.transform.localPosition += completedPreviewLocalOffset;
+            completedKimbapObject.transform.localScale = Vector3.one;
+            DisableRenderer(completedKimbapObject.GetComponent<SpriteRenderer>());
 
-            Vector2 bodySize = new Vector2(bounds.size.x * 0.92f, bounds.size.y * 0.36f);
-            SpriteRenderer bodyRenderer = completedKimbapObject.GetComponent<SpriteRenderer>();
-            if (bodyRenderer != null)
-            {
-                if (bodyRenderer.sprite == null)
-                {
-                    bodyRenderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
-                }
-
-                bodyRenderer.color = completedOuterColor;
-                bodyRenderer.sortingOrder = BodySortingOrder;
-            }
-
-            completedKimbapObject.transform.localScale = new Vector3(bodySize.x, bodySize.y, 1f);
-            CreateFillingEndCaps(bounds, bodySize);
+            Vector2 bodySize = new Vector2(
+                bounds.size.x * Mathf.Max(0.01f, completedBodySizeRatio.x),
+                bounds.size.y * Mathf.Max(0.01f, completedBodySizeRatio.y));
+            CreateFillingStrips(bodySize);
+            CreateRectChild(
+                "CompletedKimbapBody",
+                Vector3.zero,
+                bodySize,
+                completedOuterColor,
+                BodySortingOrder);
         }
 
-        private void CreateFillingEndCaps(Bounds bounds, Vector2 bodySize)
+        private void CreateFillingStrips(Vector2 bodySize)
         {
             if (fillingStates.Count == 0 || completedFillingCapPrefab == null)
             {
                 return;
             }
 
-            float usableHeight = bodySize.y * 0.7f;
+            float verticalInset = Mathf.Clamp(completedFillingVerticalInset, 0f, bodySize.y * 0.45f);
+            float innerHeight = Mathf.Max(0.01f, bodySize.y - (verticalInset * 2f));
+            float stripHeight = Mathf.Max(
+                0.01f,
+                innerHeight / Mathf.Max(1, fillingStates.Count) * Mathf.Max(0.01f, completedFillingHeightScale));
+            float usableHeight = Mathf.Max(0.01f, innerHeight - stripHeight);
             float startY = fillingStates.Count == 1 ? 0f : -usableHeight * 0.5f;
             float stepY = fillingStates.Count == 1 ? 0f : usableHeight / (fillingStates.Count - 1);
-            float sideX = bodySize.x * 0.5f;
-            float capHeight = Mathf.Max(
-                Mathf.Min(bounds.size.y * 0.055f, usableHeight / Mathf.Max(1, fillingStates.Count) * 0.8f),
-                0.025f);
-            Vector2 capSize = new Vector2(bounds.size.x * 0.12f, capHeight);
+            float widthOffset = Mathf.Max(0f, completedFillingWidthOffset);
+            Vector2 stripSize = new Vector2(bodySize.x + (widthOffset * 2f), stripHeight);
 
             for (int i = 0; i < fillingStates.Count; i++)
             {
                 float y = startY + (stepY * i);
-                Color color = fillingStates[i].Color;
-                CreateFillingCap(
-                    $"CompletedFillingLeft_{i}",
-                    new Vector3(-sideX, y, 0.03f),
-                    capSize,
-                    color,
-                    EndCapSortingOrder + i);
-                CreateFillingCap(
-                    $"CompletedFillingRight_{i}",
-                    new Vector3(sideX, y, 0.03f),
-                    capSize,
-                    color,
-                    EndCapSortingOrder + i);
+                CreateFillingStrip(
+                    $"CompletedFillingStrip_{i}",
+                    new Vector3(0f, y, 0.03f),
+                    stripSize,
+                    fillingStates[i].Color,
+                    FillingStripSortingOrder + i);
             }
         }
 
-        private void CreateFillingCap(string objectName, Vector3 localPosition, Vector2 size, Color color, int sortingOrder)
+        private void CreateFillingStrip(string objectName, Vector3 localPosition, Vector2 size, Color color, int sortingOrder)
         {
-            GameObject capObject = Instantiate(completedFillingCapPrefab, completedKimbapObject.transform, false);
-            capObject.name = objectName;
-            capObject.transform.localPosition = localPosition;
-            capObject.transform.localScale = new Vector3(size.x, size.y, 1f);
+            GameObject stripObject = Instantiate(completedFillingCapPrefab, completedKimbapObject.transform, false);
+            stripObject.name = objectName;
+            stripObject.transform.localPosition = localPosition;
+            stripObject.transform.localScale = new Vector3(size.x, size.y, 1f);
 
-            SpriteRenderer renderer = capObject.GetComponent<SpriteRenderer>();
+            SpriteRenderer renderer = stripObject.GetComponent<SpriteRenderer>();
             if (renderer == null)
             {
                 return;
@@ -540,6 +546,20 @@ namespace KimbapGame.Kitchen
 
             renderer.color = color;
             renderer.sortingOrder = sortingOrder;
+        }
+
+        private GameObject CreateRectChild(string objectName, Vector3 localPosition, Vector2 size, Color color, int sortingOrder)
+        {
+            GameObject rectObject = new GameObject(objectName);
+            rectObject.transform.SetParent(completedKimbapObject.transform, false);
+            rectObject.transform.localPosition = localPosition;
+            rectObject.transform.localScale = new Vector3(size.x, size.y, 1f);
+
+            SpriteRenderer renderer = rectObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+            renderer.color = color;
+            renderer.sortingOrder = sortingOrder;
+            return rectObject;
         }
 
         private Bounds ResolveCurrentBounds()
@@ -581,6 +601,30 @@ namespace KimbapGame.Kitchen
             for (int i = 0; i < renderers.Length; i++)
             {
                 renderers[i].sortingOrder = sortingOrder + i;
+            }
+        }
+
+        private static int CountCompletedFillingStrips(Transform root)
+        {
+            int count = 0;
+            Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                string objectName = transforms[i].name;
+                if (objectName.StartsWith("CompletedFillingStrip_", StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static void DisableRenderer(SpriteRenderer renderer)
+        {
+            if (renderer != null)
+            {
+                renderer.enabled = false;
             }
         }
 

@@ -1,3 +1,4 @@
+using System.Reflection;
 using KimbapGame.Data;
 using KimbapGame.Kitchen;
 using NUnit.Framework;
@@ -96,7 +97,7 @@ namespace KimbapGame.Tests.Kitchen
         }
 
         [Test]
-        public void FinalizeRoll_CreatesEndCapsWithoutRiceInnerPreview()
+        public void FinalizeRoll_CreatesFillingStripsWithoutRiceInnerPreview()
         {
             GameObject seaweed = CreateSprite("Seaweed", Vector3.zero, new Vector2(3f, 3f), Color.green);
             GameObject ham = CreateSprite("HamFilling", new Vector3(0f, -0.2f, -0.2f), new Vector2(0.5f, 0.2f), Color.red);
@@ -115,17 +116,83 @@ namespace KimbapGame.Tests.Kitchen
             animator.FinalizeRoll();
 
             Assert.IsTrue(animator.HasCompletedKimbap);
-            Assert.AreEqual(4, animator.CompletedEndCapCount);
+            Assert.AreEqual(2, animator.CompletedFillingStripCount);
+            Assert.AreEqual(2, animator.CompletedEndCapCount);
             Assert.IsNull(FindChild(rootObject.transform, "CompletedKimbapInner"));
             Assert.IsFalse(hamRenderer.enabled);
             Assert.IsFalse(eggRenderer.enabled);
 
-            GameObject leftHam = FindChild(rootObject.transform, "CompletedFillingLeft_0");
-            GameObject leftEgg = FindChild(rootObject.transform, "CompletedFillingLeft_1");
+            GameObject hamStrip = FindChild(rootObject.transform, "CompletedFillingStrip_0");
+            GameObject eggStrip = FindChild(rootObject.transform, "CompletedFillingStrip_1");
 
-            Assert.IsNotNull(leftHam);
-            Assert.IsNotNull(leftEgg);
-            Assert.AreNotEqual(leftHam.transform.localPosition.y, leftEgg.transform.localPosition.y);
+            Assert.IsNotNull(hamStrip);
+            Assert.IsNotNull(eggStrip);
+            Assert.AreNotEqual(hamStrip.transform.localPosition.y, eggStrip.transform.localPosition.y);
+        }
+
+        [Test]
+        public void FinalizeRoll_MakesFillingStripsProtrudeHorizontallyUnderBody()
+        {
+            GameObject seaweed = CreateSprite("Seaweed", Vector3.zero, new Vector2(3f, 3f), Color.green);
+            KitchenRollAnimator animator = rootObject.AddComponent<KitchenRollAnimator>();
+
+            controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed), seaweed);
+            for (int i = 0; i < 6; i++)
+            {
+                GameObject filling = CreateSprite(
+                    $"Filling_{i}",
+                    new Vector3(0f, -0.6f + (i * 0.2f), -0.2f),
+                    new Vector2(0.5f, 0.2f),
+                    Color.Lerp(Color.red, Color.yellow, i / 5f));
+                controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham), filling);
+            }
+
+            animator.Configure(controller);
+            animator.ConfigurePrefabsForTests(rollGuidePrefab, completedKimbapPrefab, completedFillingCapPrefab);
+            animator.PrepareRollForTests();
+
+            animator.FinalizeRoll();
+
+            Assert.AreEqual(6, animator.CompletedFillingStripCount);
+
+            GameObject body = FindChild(rootObject.transform, "CompletedKimbapBody");
+            Assert.IsNotNull(body);
+
+            SpriteRenderer bodyRenderer = body.GetComponent<SpriteRenderer>();
+            SpriteRenderer[] stripRenderers = FindRenderersByPrefix(rootObject.transform, "CompletedFillingStrip_");
+
+            Assert.AreEqual(6, stripRenderers.Length);
+
+            for (int i = 0; i < stripRenderers.Length; i++)
+            {
+                Assert.Greater(bodyRenderer.sortingOrder, stripRenderers[i].sortingOrder);
+                AssertProtrudesHorizontally(bodyRenderer.bounds, stripRenderers[i].bounds);
+                AssertYBoundsInside(bodyRenderer.bounds, stripRenderers[i].bounds);
+            }
+        }
+
+        [Test]
+        public void FinalizeRoll_UsesSerializedFillingWidthOffsetForStaticTuning()
+        {
+            GameObject seaweed = CreateSprite("Seaweed", Vector3.zero, new Vector2(3f, 3f), Color.green);
+            GameObject filling = CreateSprite("Filling", Vector3.zero, new Vector2(0.5f, 0.2f), Color.red);
+            KitchenRollAnimator animator = rootObject.AddComponent<KitchenRollAnimator>();
+            const float widthOffset = 0.23f;
+
+            controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed), seaweed);
+            controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham), filling);
+            animator.Configure(controller);
+            animator.ConfigurePrefabsForTests(rollGuidePrefab, completedKimbapPrefab, completedFillingCapPrefab);
+            SetPrivateField(animator, "completedFillingWidthOffset", widthOffset);
+            animator.PrepareRollForTests();
+
+            animator.FinalizeRoll();
+
+            SpriteRenderer bodyRenderer = FindChild(rootObject.transform, "CompletedKimbapBody").GetComponent<SpriteRenderer>();
+            SpriteRenderer stripRenderer = FindChild(rootObject.transform, "CompletedFillingStrip_0").GetComponent<SpriteRenderer>();
+
+            Assert.AreEqual(widthOffset, bodyRenderer.bounds.min.x - stripRenderer.bounds.min.x, 0.001f);
+            Assert.AreEqual(widthOffset, stripRenderer.bounds.max.x - bodyRenderer.bounds.max.x, 0.001f);
         }
 
         private GameObject CreateSprite(string name, Vector3 position, Vector2 size, Color color)
@@ -162,6 +229,42 @@ namespace KimbapGame.Tests.Kitchen
             }
 
             return null;
+        }
+
+        private static SpriteRenderer[] FindRenderersByPrefix(Transform root, string objectNamePrefix)
+        {
+            SpriteRenderer[] renderers = root.GetComponentsInChildren<SpriteRenderer>(true);
+            System.Collections.Generic.List<SpriteRenderer> matches = new System.Collections.Generic.List<SpriteRenderer>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i].name.StartsWith(objectNamePrefix, System.StringComparison.Ordinal))
+                {
+                    matches.Add(renderers[i]);
+                }
+            }
+
+            return matches.ToArray();
+        }
+
+        private static void AssertProtrudesHorizontally(Bounds body, Bounds strip)
+        {
+            const float tolerance = 0.001f;
+            Assert.Less(strip.min.x, body.min.x - tolerance);
+            Assert.Greater(strip.max.x, body.max.x + tolerance);
+        }
+
+        private static void AssertYBoundsInside(Bounds outer, Bounds inner)
+        {
+            const float tolerance = 0.001f;
+            Assert.GreaterOrEqual(inner.min.y + tolerance, outer.min.y);
+            Assert.LessOrEqual(inner.max.y - tolerance, outer.max.y);
+        }
+
+        private static void SetPrivateField<T>(object target, string fieldName, T value)
+        {
+            FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(field, $"{fieldName} field is missing.");
+            field.SetValue(target, value);
         }
 
         private static void AssertNearRollCenter(Bounds rollBounds, Vector3 position)
