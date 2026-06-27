@@ -66,22 +66,22 @@ namespace KimbapGame.Order
 
                 SheetOrderData order = new SheetOrderData
                 {
-                    index = Get(row, header, "Index"),
-                    customerName = Get(row, header, "이름"),
-                    orderDialogue = Get(row, header, "주문-대사"),
-                    orderImageName = Get(row, header, "주문-이미지"),
-                    hintDialogue = Get(row, header, "힌트-대사"),
-                    hintImageName = Get(row, header, "힌트-이미지"),
-                    successDialogue = Get(row, header, "성공-대사"),
-                    successImageName = Get(row, header, "성공-이미지"),
-                    failDialogue = Get(row, header, "실패-대사"),
-                    failImageName = Get(row, header, "실패-이미지"),
-                    seaweedName = Get(row, header, "김-이름"),
-                    seaweedCount = ParseCount(Get(row, header, "김-갯수")),
-                    riceName = Get(row, header, "밥-이름"),
-                    riceCount = ParseCount(Get(row, header, "밥-갯수")),
-                    fillingName = Get(row, header, "속-이름"),
-                    fillingCount = ParseCount(Get(row, header, "속-갯수"))
+                    index = GetAny(row, header, "Index", "인덱스", "순서", "번호"),
+                    customerName = GetAny(row, header, "이름", "손님", "손님이름", "Customer", "CustomerName"),
+                    orderDialogue = GetAny(row, header, "주문-대사", "주문대사", "주문 대사", "OrderDialogue"),
+                    orderImageName = GetAny(row, header, "주문-이미지", "주문-이미지이름", "주문이미지", "주문 이미지", "OrderImage", "OrderImageName"),
+                    hintDialogue = GetAny(row, header, "힌트-대사", "힌트대사", "힌트 대사", "HintDialogue"),
+                    hintImageName = GetAny(row, header, "힌트-이미지", "힌트-이미지이름", "힌트이미지", "힌트 이미지", "HintImage", "HintImageName"),
+                    successDialogue = GetAny(row, header, "성공-대사", "성공대사", "성공 대사", "SuccessDialogue"),
+                    successImageName = GetAny(row, header, "성공-이미지", "성공-이미지이름", "성공이미지", "성공 이미지", "SuccessImage", "SuccessImageName"),
+                    failDialogue = GetAny(row, header, "실패-대사", "실패대사", "실패 대사", "FailDialogue"),
+                    failImageName = GetAny(row, header, "실패-이미지", "실패-이미지이름", "실패이미지", "실패 이미지", "FailImage", "FailImageName"),
+                    seaweedName = GetAny(row, header, "김-이름", "김이름", "김 이름", "김", "Seaweed", "SeaweedName"),
+                    seaweedCount = ParseCount(GetAny(row, header, "김-개수", "김-갯수", "김개수", "김갯수", "SeaweedCount")),
+                    riceName = GetAny(row, header, "밥-이름", "밥이름", "밥 이름", "밥", "Rice", "RiceName"),
+                    riceCount = ParseCount(GetAny(row, header, "밥-개수", "밥-갯수", "밥개수", "밥갯수", "RiceCount")),
+                    fillingName = GetAny(row, header, "속-이름", "속이름", "속 이름", "속재료", "속재료-이름", "Filling", "FillingName"),
+                    fillingCount = ParseCount(GetAny(row, header, "속-개수", "속-갯수", "속개수", "속갯수", "속재료개수", "FillingCount"))
                 };
 
                 AddRepeatedIngredient(order.ingredients, order.seaweedName, order.seaweedCount, IngredientType.Seaweed);
@@ -108,16 +108,22 @@ namespace KimbapGame.Order
             return header;
         }
 
-        private static string Get(List<string> row, Dictionary<string, int> header, string columnName)
+        private static string GetAny(List<string> row, Dictionary<string, int> header, params string[] columnNames)
         {
-            return header.TryGetValue(Normalize(columnName), out int index) && index < row.Count
-                ? row[index].Trim()
-                : string.Empty;
+            for (int i = 0; i < columnNames.Length; i++)
+            {
+                if (header.TryGetValue(Normalize(columnNames[i]), out int index) && index < row.Count)
+                {
+                    return row[index].Trim();
+                }
+            }
+
+            return string.Empty;
         }
 
         private static string Normalize(string value)
         {
-            return (value ?? string.Empty).Trim().Replace(" ", string.Empty).ToLowerInvariant();
+            return (value ?? string.Empty).Trim().Replace(" ", string.Empty).Replace("-", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
         }
 
         private static bool IsEmptyRow(List<string> row)

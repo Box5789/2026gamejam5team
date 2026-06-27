@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using GameJam.Gameplay.Spreading;
 using KimbapGame.Data;
+using KimbapGame.Evaluation;
 using UnityEngine;
 
 namespace KimbapGame.Kitchen
@@ -197,6 +198,8 @@ namespace KimbapGame.Kitchen
 
             string path = Path.Combine(Application.persistentDataPath, resultFileName);
             SavePreparedKimbap(path);
+            SharedOrderContext.SetEvaluationResult(KimbapEvaluator.Evaluate(SharedOrderContext.CurrentSheetOrder, preparedKimbap));
+            SharedOrderContext.CompleteCurrentOrder();
             hasSavedCurrentKimbap = true;
             lastSavedPath = path;
             Debug.Log($"Saved prepared kimbap data to {path}");

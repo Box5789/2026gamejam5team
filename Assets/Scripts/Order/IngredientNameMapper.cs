@@ -10,9 +10,16 @@ namespace KimbapGame.Order
             switch (normalized)
             {
                 case "김":
+                case "기본김":
+                case "김밥김":
                 case "seaweed":
                     return IngredientType.Seaweed;
                 case "밥":
+                case "쌀밥":
+                case "흰밥":
+                case "백미":
+                case "현미":
+                case "흑미":
                 case "rice":
                     return IngredientType.Rice;
                 case "햄":
@@ -32,6 +39,8 @@ namespace KimbapGame.Order
                 case "tuna":
                     return IngredientType.Tuna;
                 case "맛살":
+                case "게맛살":
+                case "크래미":
                 case "crabmeat":
                 case "crab":
                     return IngredientType.CrabMeat;

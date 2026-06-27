@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using KimbapGame.Data;
+using KimbapGame.Evaluation;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,7 +18,7 @@ namespace KimbapGame.Order
 
         [Header("Scene")]
         [SerializeField]
-        private string kitchenSceneName = "Kitchen";
+        private string kitchenSceneName = "kitchen";
 
         [Header("UI")]
         [SerializeField]
@@ -32,6 +33,8 @@ namespace KimbapGame.Order
         private Button refuseButton;
         [SerializeField]
         private Button toKitchenButton;
+        [SerializeField]
+        private Button confirmButton;
 
         [Header("Fallback")]
         [SerializeField]
@@ -69,6 +72,11 @@ namespace KimbapGame.Order
             {
                 toKitchenButton.onClick.AddListener(GoToKitchen);
             }
+
+            if (confirmButton != null)
+            {
+                confirmButton.onClick.AddListener(ConfirmEvaluationResult);
+            }
         }
 
         private void OnDisable()
@@ -87,10 +95,16 @@ namespace KimbapGame.Order
             {
                 toKitchenButton.onClick.RemoveListener(GoToKitchen);
             }
+
+            if (confirmButton != null)
+            {
+                confirmButton.onClick.RemoveListener(ConfirmEvaluationResult);
+            }
         }
 
         private void Start()
         {
+            SetEvaluationMode(false);
             SetConversation(loadingMessage);
             StartCoroutine(LoadOrders());
         }
@@ -124,6 +138,29 @@ namespace KimbapGame.Order
             }
         }
 
+        public void ShowEvaluationResult(KimbapEvaluationResult result)
+        {
+            if (result == null)
+            {
+                return;
+            }
+
+            string responseDialogue = result.responseDialogue;
+            if (string.IsNullOrWhiteSpace(responseDialogue))
+            {
+                responseDialogue = result.isSuccess ? "성공!" : "실패...";
+            }
+
+            SetConversation(responseDialogue);
+
+            if (!string.IsNullOrWhiteSpace(result.responseImageName))
+            {
+                SetPersonImage(result.responseImageName);
+            }
+
+            SetEvaluationMode(true);
+        }
+
         public void GoToKitchen()
         {
             if (currentOrder == null)
@@ -144,7 +181,7 @@ namespace KimbapGame.Order
                     orders.Clear();
                     orders.AddRange(loadedOrders);
 
-                    if (!TryRestoreCurrentOrder())
+                    if (!TryShowPendingEvaluationResult() && !TryRestoreCurrentOrder())
                     {
                         ShowNextOrder();
                     }
@@ -152,7 +189,10 @@ namespace KimbapGame.Order
                 error =>
                 {
                     Debug.LogWarning($"Order sheet load failed: {error}");
-                    SetConversation(errorMessage);
+                    if (!TryShowPendingEvaluationResult())
+                    {
+                        SetConversation(errorMessage);
+                    }
                 });
         }
 
@@ -178,6 +218,9 @@ namespace KimbapGame.Order
 
         private void ShowNextOrder()
         {
+            SharedOrderContext.ClearEvaluationResult();
+            SetEvaluationMode(false);
+
             if (orders.Count == 0)
             {
                 currentOrder = null;
@@ -213,6 +256,59 @@ namespace KimbapGame.Order
 
             SetConversation(currentOrder.orderDialogue);
             SetPersonImage(currentOrder.orderImageName);
+        }
+
+        private bool TryShowPendingEvaluationResult()
+        {
+            if (!SharedOrderContext.HasPendingEvaluation)
+            {
+                return false;
+            }
+
+            SheetOrderData savedOrder = SharedOrderContext.CurrentSheetOrder;
+            if (savedOrder != null)
+            {
+                int restoredIndex = orders.FindIndex(order => order.index == savedOrder.index);
+                if (restoredIndex < 0)
+                {
+                    restoredIndex = orders.FindIndex(order => order.customerName == savedOrder.customerName && order.orderDialogue == savedOrder.orderDialogue);
+                }
+
+                currentOrderIndex = restoredIndex;
+                currentOrder = restoredIndex >= 0 ? orders[restoredIndex] : savedOrder;
+            }
+
+            ShowEvaluationResult(SharedOrderContext.PendingEvaluationResult);
+            return true;
+        }
+
+        private void ConfirmEvaluationResult()
+        {
+            SharedOrderContext.Clear();
+            ShowNextOrder();
+        }
+
+        private void SetEvaluationMode(bool enabled)
+        {
+            if (hintButton != null)
+            {
+                hintButton.gameObject.SetActive(!enabled);
+            }
+
+            if (refuseButton != null)
+            {
+                refuseButton.gameObject.SetActive(!enabled);
+            }
+
+            if (toKitchenButton != null)
+            {
+                toKitchenButton.gameObject.SetActive(!enabled);
+            }
+
+            if (confirmButton != null)
+            {
+                confirmButton.gameObject.SetActive(enabled);
+            }
         }
 
         private void SetConversation(string message)
@@ -267,6 +363,16 @@ namespace KimbapGame.Order
                 toKitchenButton = FindButton("ToKitchenButton");
             }
 
+            if (confirmButton == null)
+            {
+                confirmButton = FindButton("ConfirmButton");
+            }
+
+            if (confirmButton == null)
+            {
+                confirmButton = CreateConfirmButton();
+            }
+
             GameObject person = GameObject.Find("Person");
             if (person != null)
             {
@@ -319,7 +425,62 @@ namespace KimbapGame.Order
         private static Button FindButton(string name)
         {
             GameObject target = GameObject.Find(name);
-            return target != null ? target.GetComponent<Button>() : null;
+            if (target != null && target.TryGetComponent(out Button activeButton))
+            {
+                return activeButton;
+            }
+
+            Button[] buttons = Resources.FindObjectsOfTypeAll<Button>();
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                Button button = buttons[i];
+                if (button != null && button.name == name && button.gameObject.scene.IsValid())
+                {
+                    return button;
+                }
+            }
+
+            return null;
+        }
+
+        private static Button CreateConfirmButton()
+        {
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas == null)
+            {
+                return null;
+            }
+
+            GameObject buttonObject = new GameObject("ConfirmButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            buttonObject.transform.SetParent(canvas.transform, false);
+
+            RectTransform rectTransform = buttonObject.GetComponent<RectTransform>();
+            rectTransform.anchorMin = new Vector2(0.5f, 0f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            rectTransform.pivot = new Vector2(0.5f, 0f);
+            rectTransform.anchoredPosition = new Vector2(0f, 60f);
+            rectTransform.sizeDelta = new Vector2(220f, 72f);
+
+            Image image = buttonObject.GetComponent<Image>();
+            image.color = new Color(1f, 0.93f, 0.7f, 1f);
+
+            GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            textObject.transform.SetParent(buttonObject.transform, false);
+
+            RectTransform textRect = textObject.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+            text.text = "확인";
+            text.fontSize = 30f;
+            text.color = Color.black;
+            text.alignment = TextAlignmentOptions.Center;
+            text.raycastTarget = false;
+
+            return buttonObject.GetComponent<Button>();
         }
     }
 }

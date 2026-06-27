@@ -6,6 +6,11 @@ namespace KimbapGame.Kitchen
 {
     public sealed class KimbapResultRow
     {
+        public KimbapResultRow()
+        {
+        }
+
+
         public string sessionId;
         public DateTime timestampUtc;
         public int orderId;

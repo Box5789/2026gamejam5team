@@ -1,4 +1,5 @@
 using System;
+using KimbapGame.Evaluation;
 
 namespace KimbapGame.Data
 {
@@ -6,9 +7,11 @@ namespace KimbapGame.Data
     {
         public static CurrentOrder CurrentOrder { get; private set; }
         public static SheetOrderData CurrentSheetOrder { get; private set; }
+        public static KimbapEvaluationResult PendingEvaluationResult { get; private set; }
         public static string ReturnSceneName { get; set; } = "order";
 
         public static bool HasOrder => CurrentOrder != null && CurrentOrder.order != null;
+        public static bool HasPendingEvaluation => PendingEvaluationResult != null;
 
         public static event Action<CurrentOrder> CurrentOrderChanged;
 
@@ -20,7 +23,18 @@ namespace KimbapGame.Data
                 isCompleted = false
             };
             CurrentSheetOrder = sheetOrderData;
+            PendingEvaluationResult = null;
             CurrentOrderChanged?.Invoke(CurrentOrder);
+        }
+
+        public static void SetEvaluationResult(KimbapEvaluationResult result)
+        {
+            PendingEvaluationResult = result;
+        }
+
+        public static void ClearEvaluationResult()
+        {
+            PendingEvaluationResult = null;
         }
 
         public static void CompleteCurrentOrder()
@@ -38,6 +52,7 @@ namespace KimbapGame.Data
         {
             CurrentOrder = null;
             CurrentSheetOrder = null;
+            PendingEvaluationResult = null;
             CurrentOrderChanged?.Invoke(null);
         }
     }
