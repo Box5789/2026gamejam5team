@@ -9,8 +9,9 @@ namespace KimbapGame.Kitchen
     {
         [SerializeField] private Transform movingTablesRoot;
         [SerializeField] private Button nextButton;
-        [SerializeField] private float tableSpacing = 9f;
-        [SerializeField] private int tableCount = 3;
+        [SerializeField] private KitchenRicePaintBridge ricePaintBridge;
+        [SerializeField] private Transform ricePaintingTableRoot;
+        [SerializeField] private int ricePaintingTableIndex = 1;
         [SerializeField] private float slideDuration = 0.35f;
 
         private int currentTableIndex;
@@ -24,20 +25,23 @@ namespace KimbapGame.Kitchen
 
         public int CurrentTableIndex => currentTableIndex;
 
-        public int TableCount => tableCount;
+        public int TableCount => GetTableCount();
 
-        public void Configure(Transform movingTablesRoot, Button nextButton, float tableSpacing, int tableCount)
+        public Transform CurrentTableRoot => GetTableRoot(currentTableIndex);
+
+        public void Configure(Transform movingTablesRoot, Button nextButton)
         {
             this.movingTablesRoot = movingTablesRoot;
             this.nextButton = nextButton;
-            this.tableSpacing = tableSpacing;
-            this.tableCount = Mathf.Max(1, tableCount);
             startPosition = this.movingTablesRoot == null ? Vector3.zero : this.movingTablesRoot.localPosition;
+            currentTableIndex = ClampTableIndex(currentTableIndex, TableCount);
+            RegisterButtonListener();
+            UpdateRicePaintingMode();
+        }
 
-            if (this.nextButton != null)
-            {
-                this.nextButton.onClick.AddListener(GoToNextTable);
-            }
+        public void Configure(Transform movingTablesRoot, Button nextButton, float tableSpacing, int tableCount)
+        {
+            Configure(movingTablesRoot, nextButton);
         }
 
         private void Awake()
@@ -47,9 +51,16 @@ namespace KimbapGame.Kitchen
                 startPosition = movingTablesRoot.localPosition;
             }
 
+            currentTableIndex = ClampTableIndex(currentTableIndex, TableCount);
+            RegisterButtonListener();
+            UpdateRicePaintingMode();
+        }
+
+        private void OnDestroy()
+        {
             if (nextButton != null)
             {
-                nextButton.onClick.AddListener(GoToNextTable);
+                nextButton.onClick.RemoveListener(GoToNextTable);
             }
         }
 
@@ -79,7 +90,7 @@ namespace KimbapGame.Kitchen
 
         public void SetTableIndex(int tableIndex)
         {
-            int clampedIndex = ClampTableIndex(tableIndex, tableCount);
+            int clampedIndex = ClampTableIndex(tableIndex, TableCount);
             if (clampedIndex == currentTableIndex && !isSliding)
             {
                 return;
@@ -87,6 +98,7 @@ namespace KimbapGame.Kitchen
 
             currentTableIndex = clampedIndex;
             BeginSlide();
+            UpdateRicePaintingMode();
             TableChanged?.Invoke(currentTableIndex);
         }
 
@@ -108,9 +120,76 @@ namespace KimbapGame.Kitchen
             }
 
             slideStartPosition = movingTablesRoot.localPosition;
-            slideTargetPosition = startPosition + Vector3.left * tableSpacing * currentTableIndex;
+            slideTargetPosition = GetTargetRootPosition(currentTableIndex);
             slideTimer = 0f;
             isSliding = true;
+
+            if (slideDuration <= 0f)
+            {
+                isSliding = false;
+                movingTablesRoot.localPosition = slideTargetPosition;
+            }
+        }
+
+        private void UpdateRicePaintingMode()
+        {
+            if (ricePaintBridge != null)
+            {
+                ricePaintBridge.SetPaintingEnabled(IsCurrentRicePaintingTable());
+            }
+        }
+
+        private bool IsCurrentRicePaintingTable()
+        {
+            Transform currentTableRoot = CurrentTableRoot;
+            if (ricePaintingTableRoot != null && currentTableRoot != null)
+            {
+                return currentTableRoot == ricePaintingTableRoot;
+            }
+
+            return currentTableIndex == ricePaintingTableIndex;
+        }
+
+        private Vector3 GetTargetRootPosition(int tableIndex)
+        {
+            Transform firstTableRoot = GetTableRoot(0);
+            Transform selectedTableRoot = GetTableRoot(tableIndex);
+            if (firstTableRoot == null || selectedTableRoot == null)
+            {
+                return startPosition;
+            }
+
+            Vector3 tableOffset = selectedTableRoot.localPosition - firstTableRoot.localPosition;
+            tableOffset.z = 0f;
+            Vector3 targetPosition = startPosition - tableOffset;
+            targetPosition.z = startPosition.z;
+            return targetPosition;
+        }
+
+        private Transform GetTableRoot(int index)
+        {
+            if (movingTablesRoot == null || index < 0 || index >= movingTablesRoot.childCount)
+            {
+                return null;
+            }
+
+            return movingTablesRoot.GetChild(index);
+        }
+
+        private int GetTableCount()
+        {
+            return movingTablesRoot == null ? 0 : movingTablesRoot.childCount;
+        }
+
+        private void RegisterButtonListener()
+        {
+            if (nextButton == null)
+            {
+                return;
+            }
+
+            nextButton.onClick.RemoveListener(GoToNextTable);
+            nextButton.onClick.AddListener(GoToNextTable);
         }
     }
 }

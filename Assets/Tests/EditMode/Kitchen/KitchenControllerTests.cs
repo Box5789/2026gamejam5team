@@ -9,6 +9,7 @@ namespace KimbapGame.Tests.Kitchen
     public sealed class KitchenControllerTests
     {
         private GameObject gameObject;
+        private GameObject riceSurfacePrefab;
         private KitchenController controller;
 
         [SetUp]
@@ -17,12 +18,18 @@ namespace KimbapGame.Tests.Kitchen
             gameObject = new GameObject("KitchenControllerTests");
             controller = gameObject.AddComponent<KitchenController>();
             controller.ConfigureLimitsForTests(1, 2, 1);
+            riceSurfacePrefab = new GameObject("RiceSurfacePrefab");
+            riceSurfacePrefab.AddComponent<SpriteRenderer>();
+            riceSurfacePrefab.AddComponent<SpreadableSurface>();
+            riceSurfacePrefab.AddComponent<SpreadInputController>();
+            controller.ConfigureRiceSurfacePrefabForTests(riceSurfacePrefab);
         }
 
         [TearDown]
         public void TearDown()
         {
             Object.DestroyImmediate(gameObject);
+            Object.DestroyImmediate(riceSurfacePrefab);
         }
 
         [Test]

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace KimbapGame.Kitchen
 {
@@ -15,6 +16,12 @@ namespace KimbapGame.Kitchen
         private const float MinimumVisibleScale = 0.001f;
 
         [SerializeField] private KitchenController controller;
+        [SerializeField] private GameObject rollGuidePrefab;
+        [SerializeField] private GameObject completedKimbapPrefab;
+        [SerializeField] private GameObject completedFillingCapPrefab;
+        [SerializeField] private Button rollButton;
+        [SerializeField] private Button completeButton;
+        [SerializeField] private Button submitButton;
         [SerializeField] private float growDuration = 0.45f;
         [SerializeField] private float moveDuration = 0.8f;
         [SerializeField] private Color rollColor = new Color(1f, 0.78f, 0.18f, 1f);
@@ -76,6 +83,39 @@ namespace KimbapGame.Kitchen
             this.controller = controller;
         }
 
+        public void ConfigurePrefabsForTests(GameObject rollGuidePrefab, GameObject completedKimbapPrefab, GameObject completedFillingCapPrefab)
+        {
+            this.rollGuidePrefab = rollGuidePrefab;
+            this.completedKimbapPrefab = completedKimbapPrefab;
+            this.completedFillingCapPrefab = completedFillingCapPrefab;
+        }
+
+        private void OnEnable()
+        {
+            if (rollButton != null)
+            {
+                rollButton.onClick.AddListener(HandleRollClicked);
+            }
+
+            if (completeButton != null)
+            {
+                completeButton.onClick.AddListener(HandleCompleteClicked);
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (rollButton != null)
+            {
+                rollButton.onClick.RemoveListener(HandleRollClicked);
+            }
+
+            if (completeButton != null)
+            {
+                completeButton.onClick.RemoveListener(HandleCompleteClicked);
+            }
+        }
+
         public void PlayRoll(Action onFinished)
         {
             if (isRolling)
@@ -99,6 +139,46 @@ namespace KimbapGame.Kitchen
             HideRiceSurface();
             HideOriginalFillings();
             CreateCompletedKimbap();
+        }
+
+        private void HandleRollClicked()
+        {
+            if (rollButton != null)
+            {
+                rollButton.interactable = false;
+            }
+
+            PlayRoll(() =>
+            {
+                if (rollButton != null)
+                {
+                    rollButton.gameObject.SetActive(false);
+                }
+
+                if (completeButton != null)
+                {
+                    completeButton.gameObject.SetActive(true);
+                }
+            });
+        }
+
+        private void HandleCompleteClicked()
+        {
+            FinalizeRoll();
+            if (controller != null)
+            {
+                controller.CompleteAndSave();
+            }
+
+            if (completeButton != null)
+            {
+                completeButton.gameObject.SetActive(false);
+            }
+
+            if (submitButton != null)
+            {
+                submitButton.gameObject.SetActive(true);
+            }
         }
 
         public void PrepareRollForTests()
@@ -191,12 +271,29 @@ namespace KimbapGame.Kitchen
             hasPreparedRoll = true;
             CacheFillings();
 
-            rollObject = new GameObject("RollGuideRect");
-            rollObject.transform.SetParent(visualParent, true);
+            if (rollGuidePrefab == null)
+            {
+                Debug.LogWarning("KitchenRollAnimator requires a roll guide prefab.");
+                return false;
+            }
+
+            rollObject = Instantiate(rollGuidePrefab, visualParent, true);
+            rollObject.name = "RollGuideRect";
             rollObject.transform.localScale = new Vector3(originalSeaweedBounds.size.x, 0f, 1f);
 
-            rollRenderer = rollObject.AddComponent<SpriteRenderer>();
-            rollRenderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+            rollRenderer = rollObject.GetComponent<SpriteRenderer>();
+            if (rollRenderer == null)
+            {
+                Debug.LogWarning("Roll guide prefab must contain a SpriteRenderer.");
+                DestroyRollVisual();
+                return false;
+            }
+
+            if (rollRenderer.sprite == null)
+            {
+                rollRenderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+            }
+
             rollRenderer.color = rollColor;
             rollRenderer.sortingOrder = RollSortingOrder;
             SetRollRect(0f, 0f);
@@ -361,24 +458,36 @@ namespace KimbapGame.Kitchen
 
             Bounds bounds = hasPreparedRoll ? originalSeaweedBounds : ResolveCurrentBounds();
             Transform parent = visualParent != null ? visualParent : transform;
-            completedKimbapObject = new GameObject("CompletedKimbapPreview");
-            completedKimbapObject.transform.SetParent(parent, true);
+            if (completedKimbapPrefab == null)
+            {
+                Debug.LogWarning("KitchenRollAnimator requires a completed kimbap prefab.");
+                return;
+            }
+
+            completedKimbapObject = Instantiate(completedKimbapPrefab, parent, true);
+            completedKimbapObject.name = "CompletedKimbapPreview";
             completedKimbapObject.transform.position = new Vector3(bounds.center.x, bounds.center.y, originalSeaweedPosition.z - 0.25f);
 
             Vector2 bodySize = new Vector2(bounds.size.x * 0.92f, bounds.size.y * 0.36f);
+            SpriteRenderer bodyRenderer = completedKimbapObject.GetComponent<SpriteRenderer>();
+            if (bodyRenderer != null)
+            {
+                if (bodyRenderer.sprite == null)
+                {
+                    bodyRenderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+                }
+
+                bodyRenderer.color = completedOuterColor;
+                bodyRenderer.sortingOrder = BodySortingOrder;
+            }
+
+            completedKimbapObject.transform.localScale = new Vector3(bodySize.x, bodySize.y, 1f);
             CreateFillingEndCaps(bounds, bodySize);
-            KitchenPlaceholderFactory.CreateSpriteObject(
-                "CompletedKimbapOuter",
-                completedKimbapObject.transform,
-                Vector3.zero,
-                bodySize,
-                completedOuterColor,
-                BodySortingOrder);
         }
 
         private void CreateFillingEndCaps(Bounds bounds, Vector2 bodySize)
         {
-            if (fillingStates.Count == 0)
+            if (fillingStates.Count == 0 || completedFillingCapPrefab == null)
             {
                 return;
             }
@@ -396,21 +505,41 @@ namespace KimbapGame.Kitchen
             {
                 float y = startY + (stepY * i);
                 Color color = fillingStates[i].Color;
-                KitchenPlaceholderFactory.CreateSpriteObject(
+                CreateFillingCap(
                     $"CompletedFillingLeft_{i}",
-                    completedKimbapObject.transform,
                     new Vector3(-sideX, y, 0.03f),
                     capSize,
                     color,
                     EndCapSortingOrder + i);
-                KitchenPlaceholderFactory.CreateSpriteObject(
+                CreateFillingCap(
                     $"CompletedFillingRight_{i}",
-                    completedKimbapObject.transform,
                     new Vector3(sideX, y, 0.03f),
                     capSize,
                     color,
                     EndCapSortingOrder + i);
             }
+        }
+
+        private void CreateFillingCap(string objectName, Vector3 localPosition, Vector2 size, Color color, int sortingOrder)
+        {
+            GameObject capObject = Instantiate(completedFillingCapPrefab, completedKimbapObject.transform, false);
+            capObject.name = objectName;
+            capObject.transform.localPosition = localPosition;
+            capObject.transform.localScale = new Vector3(size.x, size.y, 1f);
+
+            SpriteRenderer renderer = capObject.GetComponent<SpriteRenderer>();
+            if (renderer == null)
+            {
+                return;
+            }
+
+            if (renderer.sprite == null)
+            {
+                renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+            }
+
+            renderer.color = color;
+            renderer.sortingOrder = sortingOrder;
         }
 
         private Bounds ResolveCurrentBounds()

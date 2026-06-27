@@ -1,4 +1,5 @@
 using System;
+using GameJam.Gameplay.Spreading;
 using KimbapGame.Data;
 using UnityEngine;
 
@@ -14,6 +15,7 @@ namespace KimbapGame.Kitchen
         [SerializeField] private Color placeholderColor = Color.white;
         [SerializeField] private GameObject dragPrefab;
         [SerializeField] private string riceBrushId;
+        [SerializeField] private SpreadBrushDefinition riceBrushDefinition;
 
         public string VariantId => string.IsNullOrWhiteSpace(variantId) ? ingredientType.ToString() : variantId;
 
@@ -27,7 +29,20 @@ namespace KimbapGame.Kitchen
 
         public GameObject DragPrefab => dragPrefab;
 
-        public string RiceBrushId => string.IsNullOrWhiteSpace(riceBrushId) ? VariantId : riceBrushId;
+        public string RiceBrushId
+        {
+            get
+            {
+                if (riceBrushDefinition != null && !string.IsNullOrWhiteSpace(riceBrushDefinition.Id))
+                {
+                    return riceBrushDefinition.Id;
+                }
+
+                return string.IsNullOrWhiteSpace(riceBrushId) ? VariantId : riceBrushId;
+            }
+        }
+
+        public SpreadBrushDefinition RiceBrushDefinition => riceBrushDefinition;
 
         public KitchenIngredientDefinition(
             string variantId,
@@ -36,13 +51,40 @@ namespace KimbapGame.Kitchen
             KitchenIngredientCategory category,
             Color placeholderColor,
             string riceBrushId = "")
+            : this(variantId, displayName, ingredientType, category, placeholderColor, null, riceBrushId)
+        {
+        }
+
+        public KitchenIngredientDefinition(
+            string variantId,
+            string displayName,
+            IngredientType ingredientType,
+            KitchenIngredientCategory category,
+            Color placeholderColor,
+            GameObject dragPrefab,
+            string riceBrushId = "")
+            : this(variantId, displayName, ingredientType, category, placeholderColor, dragPrefab, riceBrushId, null)
+        {
+        }
+
+        public KitchenIngredientDefinition(
+            string variantId,
+            string displayName,
+            IngredientType ingredientType,
+            KitchenIngredientCategory category,
+            Color placeholderColor,
+            GameObject dragPrefab,
+            string riceBrushId,
+            SpreadBrushDefinition riceBrushDefinition)
         {
             this.variantId = variantId;
             this.displayName = displayName;
             this.ingredientType = ingredientType;
             this.category = category;
             this.placeholderColor = placeholderColor;
+            this.dragPrefab = dragPrefab;
             this.riceBrushId = riceBrushId;
+            this.riceBrushDefinition = riceBrushDefinition;
         }
     }
 }

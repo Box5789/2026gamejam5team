@@ -4,6 +4,7 @@ namespace KimbapGame.Kitchen
     {
         Seaweed,
         Rice,
-        Filling
+        Filling,
+        Sauce
     }
 }

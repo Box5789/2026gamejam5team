@@ -34,16 +34,6 @@ namespace KimbapGame.Kitchen
 
         private void Awake()
         {
-            if (surface == null)
-            {
-                surface = FindObjectOfType<SpreadableSurface>();
-            }
-
-            if (inputController == null)
-            {
-                inputController = FindObjectOfType<SpreadInputController>();
-            }
-
             if (targetCamera == null)
             {
                 targetCamera = Camera.main;
@@ -70,7 +60,14 @@ namespace KimbapGame.Kitchen
             SpreadableSurface activeSurface = GetActiveSurface();
             if (activeSurface != null && selectedRice != null)
             {
-                activeSurface.SelectOrCreateBrush(selectedRice.RiceBrushId, selectedRice.DisplayName, selectedRice.PlaceholderColor);
+                if (selectedRice.RiceBrushDefinition != null)
+                {
+                    activeSurface.SelectOrCreateBrush(selectedRice.RiceBrushDefinition);
+                }
+                else
+                {
+                    activeSurface.SelectOrCreateBrush(selectedRice.RiceBrushId, selectedRice.DisplayName, selectedRice.PlaceholderColor);
+                }
             }
         }
 

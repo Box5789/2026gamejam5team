@@ -16,6 +16,7 @@ namespace KimbapGame.Kitchen
         [SerializeField] private int maxFillingItems = 10;
         [SerializeField] private KitchenDropZone dropZone;
         [SerializeField] private KitchenRicePaintBridge ricePaintBridge;
+        [SerializeField] private GameObject riceSurfacePrefab;
         [SerializeField] private string resultFileName = "KimbapResults.xlsx";
         [SerializeField] private int droppedSortingBase = 30;
         [SerializeField] private float riceSurfaceLocalZ = -0.05f;
@@ -57,19 +58,14 @@ namespace KimbapGame.Kitchen
             this.ricePaintBridge = ricePaintBridge;
         }
 
+        public void ConfigureRiceSurfacePrefabForTests(GameObject prefab)
+        {
+            riceSurfacePrefab = prefab;
+        }
+
         private void Awake()
         {
             sessionId = Guid.NewGuid().ToString("N");
-
-            if (dropZone == null)
-            {
-                dropZone = FindObjectOfType<KitchenDropZone>();
-            }
-
-            if (ricePaintBridge == null)
-            {
-                ricePaintBridge = FindObjectOfType<KitchenRicePaintBridge>();
-            }
         }
 
         public void SetCurrentOrder(CurrentOrder order)
@@ -239,17 +235,41 @@ namespace KimbapGame.Kitchen
                 return;
             }
 
-            GameObject surfaceObject = new GameObject("TopSeaweedRiceSurface");
+            if (riceSurfacePrefab == null)
+            {
+                Debug.LogWarning("KitchenController requires a rice surface prefab before rice can be painted.");
+                return;
+            }
+
+            GameObject surfaceObject = Instantiate(riceSurfacePrefab, topSeaweedObject.transform);
+            surfaceObject.name = "TopSeaweedRiceSurface";
             surfaceObject.transform.SetParent(topSeaweedObject.transform, false);
             surfaceObject.transform.localPosition = new Vector3(0f, 0f, riceSurfaceLocalZ);
             surfaceObject.transform.localScale = new Vector3(0.92f, 0.78f, 1f);
 
-            SpriteRenderer renderer = surfaceObject.AddComponent<SpriteRenderer>();
-            renderer.sortingOrder = sortingOrder;
+            SpriteRenderer renderer = surfaceObject.GetComponent<SpriteRenderer>();
+            if (renderer != null)
+            {
+                if (renderer.sprite == null)
+                {
+                    renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+                }
 
-            currentRiceSurface = surfaceObject.AddComponent<SpreadableSurface>();
+                renderer.sortingOrder = sortingOrder;
+            }
+
+            currentRiceSurface = surfaceObject.GetComponent<SpreadableSurface>();
+            currentRiceInputController = surfaceObject.GetComponent<SpreadInputController>();
+            if (currentRiceSurface == null || currentRiceInputController == null)
+            {
+                Debug.LogWarning("Rice surface prefab must contain SpreadableSurface and SpreadInputController components.");
+                DestroyUnityObject(surfaceObject);
+                currentRiceSurface = null;
+                currentRiceInputController = null;
+                return;
+            }
+
             currentRiceSurface.SetSurfaceColor(surfaceColor);
-            currentRiceInputController = surfaceObject.AddComponent<SpreadInputController>();
             currentRiceInputController.enabled = false;
         }
 
