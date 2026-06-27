@@ -9,6 +9,9 @@ namespace KimbapGame.Tests.Kitchen
     {
         private GameObject rootObject;
         private GameObject controllerObject;
+        private GameObject rollGuidePrefab;
+        private GameObject completedKimbapPrefab;
+        private GameObject completedFillingCapPrefab;
         private KitchenController controller;
 
         [SetUp]
@@ -18,6 +21,9 @@ namespace KimbapGame.Tests.Kitchen
             controllerObject = new GameObject("KitchenController");
             controller = controllerObject.AddComponent<KitchenController>();
             controller.ConfigureLimitsForTests(2, 2, 4);
+            rollGuidePrefab = CreateSprite("RollGuidePrefab", Vector3.zero, Vector2.one, Color.white, null);
+            completedKimbapPrefab = CreateSprite("CompletedKimbapPrefab", Vector3.zero, Vector2.one, Color.white, null);
+            completedFillingCapPrefab = CreateSprite("CompletedFillingCapPrefab", Vector3.zero, Vector2.one, Color.white, null);
         }
 
         [TearDown]
@@ -25,6 +31,9 @@ namespace KimbapGame.Tests.Kitchen
         {
             Object.DestroyImmediate(rootObject);
             Object.DestroyImmediate(controllerObject);
+            Object.DestroyImmediate(rollGuidePrefab);
+            Object.DestroyImmediate(completedKimbapPrefab);
+            Object.DestroyImmediate(completedFillingCapPrefab);
         }
 
         [Test]
@@ -39,6 +48,7 @@ namespace KimbapGame.Tests.Kitchen
             controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham), bottomFilling);
             controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Egg), topFilling);
             animator.Configure(controller);
+            animator.ConfigurePrefabsForTests(rollGuidePrefab, completedKimbapPrefab, completedFillingCapPrefab);
             animator.PrepareRollForTests();
 
             animator.SimulateRollStepForTests(0f);
@@ -69,6 +79,7 @@ namespace KimbapGame.Tests.Kitchen
             controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham), ham);
             controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Egg), egg);
             animator.Configure(controller);
+            animator.ConfigurePrefabsForTests(rollGuidePrefab, completedKimbapPrefab, completedFillingCapPrefab);
             animator.PrepareRollForTests();
 
             animator.SimulateRollStepForTests(0f);
@@ -98,6 +109,7 @@ namespace KimbapGame.Tests.Kitchen
             controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham), ham);
             controller.RegisterDroppedObject(CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Egg), egg);
             animator.Configure(controller);
+            animator.ConfigurePrefabsForTests(rollGuidePrefab, completedKimbapPrefab, completedFillingCapPrefab);
             animator.PrepareRollForTests();
 
             animator.FinalizeRoll();
@@ -118,13 +130,24 @@ namespace KimbapGame.Tests.Kitchen
 
         private GameObject CreateSprite(string name, Vector3 position, Vector2 size, Color color)
         {
-            return KitchenPlaceholderFactory.CreateSpriteObject(
-                name,
-                rootObject.transform,
-                position,
-                size,
-                color,
-                10);
+            return CreateSprite(name, position, size, color, rootObject.transform);
+        }
+
+        private static GameObject CreateSprite(string name, Vector3 position, Vector2 size, Color color, Transform parent)
+        {
+            GameObject spriteObject = new GameObject(name);
+            if (parent != null)
+            {
+                spriteObject.transform.SetParent(parent, false);
+            }
+
+            spriteObject.transform.localPosition = position;
+            spriteObject.transform.localScale = new Vector3(size.x, size.y, 1f);
+            SpriteRenderer renderer = spriteObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+            renderer.color = color;
+            renderer.sortingOrder = 10;
+            return spriteObject;
         }
 
         private static GameObject FindChild(Transform root, string objectName)

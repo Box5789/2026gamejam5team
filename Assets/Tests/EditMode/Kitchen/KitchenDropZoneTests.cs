@@ -12,9 +12,7 @@ namespace KimbapGame.Tests.Kitchen
         {
             GameObject controllerObject = new GameObject("KitchenController");
             GameObject dropZoneObject = new GameObject("KitchenDropZone");
-            GameObject previewObject = KitchenIngredientSource.CreatePlaceholderPreview(
-                CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed),
-                new Vector2(2.4f, 1.7f));
+            GameObject previewObject = CreatePreview("SeaweedPreview", new Vector2(2.4f, 1.7f));
             KitchenController controller = controllerObject.AddComponent<KitchenController>();
             KitchenDropZone dropZone = dropZoneObject.AddComponent<KitchenDropZone>();
             KitchenIngredientDefinition seaweed = CreateDefinition(KitchenIngredientCategory.Seaweed, IngredientType.Seaweed);
@@ -67,6 +65,16 @@ namespace KimbapGame.Tests.Kitchen
                 ingredientType,
                 category,
                 Color.white);
+        }
+
+        private static GameObject CreatePreview(string name, Vector2 size)
+        {
+            GameObject previewObject = new GameObject(name);
+            previewObject.transform.localScale = new Vector3(size.x, size.y, 1f);
+            SpriteRenderer renderer = previewObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+            previewObject.AddComponent<BoxCollider2D>();
+            return previewObject;
         }
     }
 }

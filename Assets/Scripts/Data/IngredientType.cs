@@ -10,6 +10,7 @@ namespace KimbapGame.Data
         Spinach,
         Tuna,
         CrabMeat,
-        PickledRadish
+        PickledRadish,
+        GenericFilling
     }
 }

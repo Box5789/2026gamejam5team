@@ -21,7 +21,7 @@ namespace KimbapGame.Kitchen
                 targetCamera = Camera.main;
             }
 
-            ApplyPlaceholderColor();
+            ApplyPlaceholderVisuals();
         }
 
         public void Configure(
@@ -36,7 +36,7 @@ namespace KimbapGame.Kitchen
             this.dropZone = dropZone;
             this.targetCamera = targetCamera;
             this.dragPreviewSize = dragPreviewSize;
-            ApplyPlaceholderColor();
+            ApplyPlaceholderVisuals();
         }
 
         private void OnMouseDown()
@@ -66,43 +66,64 @@ namespace KimbapGame.Kitchen
                 return;
             }
 
-            GameObject preview = definition.DragPrefab != null
-                ? Instantiate(definition.DragPrefab)
-                : CreatePlaceholderPreview(definition, dragPreviewSize);
+            if (definition.DragPrefab == null)
+            {
+                Debug.LogWarning($"Kitchen ingredient '{definition.DisplayName}' is missing a drag prefab.");
+                return;
+            }
+
+            GameObject preview = Instantiate(definition.DragPrefab);
             preview.name = $"{definition.DisplayName}_DragPreview";
             preview.transform.position = transform.position + new Vector3(0f, -0.45f, -1f);
+            preview.transform.localScale = new Vector3(dragPreviewSize.x, dragPreviewSize.y, 1f);
+            ApplyPreviewVisuals(preview);
 
             var draggable = preview.GetComponent<KitchenDraggableItem>();
             if (draggable == null)
             {
-                draggable = preview.AddComponent<KitchenDraggableItem>();
+                Debug.LogWarning($"Drag prefab for '{definition.DisplayName}' must contain KitchenDraggableItem.");
+                Destroy(preview);
+                return;
             }
 
             draggable.Initialize(controller, dropZone, definition, targetCamera);
         }
 
-        private void ApplyPlaceholderColor()
+        private void ApplyPlaceholderVisuals()
         {
             if (definition == null)
             {
                 return;
             }
 
+            if (bowlRenderer != null && bowlRenderer.sprite == null)
+            {
+                bowlRenderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+            }
+
             if (ingredientRenderer != null)
             {
+                if (ingredientRenderer.sprite == null)
+                {
+                    ingredientRenderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+                }
+
                 ingredientRenderer.color = definition.PlaceholderColor;
             }
         }
 
-        public static GameObject CreatePlaceholderPreview(KitchenIngredientDefinition definition, Vector2 size)
+        private void ApplyPreviewVisuals(GameObject preview)
         {
-            GameObject preview = new GameObject($"{definition.DisplayName}_Preview");
-            var renderer = preview.AddComponent<SpriteRenderer>();
-            renderer.sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
-            renderer.color = definition.PlaceholderColor;
-            preview.transform.localScale = new Vector3(size.x, size.y, 1f);
-            preview.AddComponent<BoxCollider2D>();
-            return preview;
+            SpriteRenderer[] renderers = preview.GetComponentsInChildren<SpriteRenderer>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i].sprite == null)
+                {
+                    renderers[i].sprite = KitchenPlaceholderFactory.CreateWhiteSprite();
+                }
+
+                renderers[i].color = definition.PlaceholderColor;
+            }
         }
     }
 }

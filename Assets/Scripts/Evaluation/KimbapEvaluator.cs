@@ -388,6 +388,7 @@ namespace KimbapGame.Evaluation
                 case IngredientType.Tuna: return "tuna";
                 case IngredientType.CrabMeat: return "crabmeat";
                 case IngredientType.PickledRadish: return "pickledradish";
+                case IngredientType.GenericFilling: return "filling";
                 default: return ingredientType.ToString();
             }
         }

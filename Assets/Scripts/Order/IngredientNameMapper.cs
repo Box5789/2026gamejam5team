@@ -6,56 +6,7 @@ namespace KimbapGame.Order
     {
         public static IngredientType ToIngredientType(string value, IngredientType? fallback = null)
         {
-            string normalized = Normalize(value);
-            switch (normalized)
-            {
-                case "김":
-                case "기본김":
-                case "김밥김":
-                case "seaweed":
-                    return IngredientType.Seaweed;
-                case "밥":
-                case "쌀밥":
-                case "흰밥":
-                case "백미":
-                case "현미":
-                case "흑미":
-                case "rice":
-                    return IngredientType.Rice;
-                case "햄":
-                case "ham":
-                    return IngredientType.Ham;
-                case "계란":
-                case "달걀":
-                case "egg":
-                    return IngredientType.Egg;
-                case "당근":
-                case "carrot":
-                    return IngredientType.Carrot;
-                case "시금치":
-                case "spinach":
-                    return IngredientType.Spinach;
-                case "참치":
-                case "tuna":
-                    return IngredientType.Tuna;
-                case "맛살":
-                case "게맛살":
-                case "크래미":
-                case "crabmeat":
-                case "crab":
-                    return IngredientType.CrabMeat;
-                case "단무지":
-                case "pickledradish":
-                case "radish":
-                    return IngredientType.PickledRadish;
-                default:
-                    return fallback ?? IngredientType.Ham;
-            }
-        }
-
-        private static string Normalize(string value)
-        {
-            return (value ?? string.Empty).Trim().Replace(" ", string.Empty).Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant();
+            return IngredientTypeMapper.ToIngredientType(value, fallback ?? IngredientType.Ham);
         }
     }
 }
