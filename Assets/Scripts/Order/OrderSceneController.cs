@@ -36,6 +36,12 @@ namespace KimbapGame.Order
         [SerializeField]
         private Button confirmButton;
 
+        [Header("Impact Reaction")]
+        [SerializeField]
+        private float impactReactionVelocityThreshold = 2.5f;
+        [SerializeField]
+        private float impactReactionDuration = 1f;
+
         [Header("Sound")]
         [SerializeField]
         private string buttonSoundName = "Order/Sound/버튼";
@@ -76,6 +82,9 @@ namespace KimbapGame.Order
         private int currentOrderIndex = -1;
         private readonly List<GameObject> emotionParticleObjects = new List<GameObject>();
         private Coroutine emotionParticleRoutine;
+        private Coroutine impactReactionRoutine;
+        private Sprite impactReactionRestoreSprite;
+        private bool impactReactionActive;
         private AudioSource orderAudioSource;
 
         private void Awake()
@@ -130,6 +139,8 @@ namespace KimbapGame.Order
             {
                 confirmButton.onClick.RemoveListener(ConfirmEvaluationResult);
             }
+
+            CancelImpactReaction(true);
         }
 
         private void Start()
@@ -711,6 +722,83 @@ namespace KimbapGame.Order
             }
         }
 
+        public bool TryPlayImpactReaction(float impactSpeed)
+        {
+            if (impactSpeed < Mathf.Max(0f, impactReactionVelocityThreshold))
+            {
+                return false;
+            }
+
+            if (currentOrder == null || personSpriteRenderer == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentOrder.matchedImageName))
+            {
+                return false;
+            }
+
+            Sprite reactionSprite = LoadPersonSprite(currentOrder.matchedImageName);
+            if (reactionSprite == null)
+            {
+                Debug.LogWarning($"Impact reaction sprite not found in Resources: {currentOrder.matchedImageName}");
+                return false;
+            }
+
+            if (impactReactionRoutine != null)
+            {
+                StopCoroutine(impactReactionRoutine);
+                impactReactionRoutine = null;
+            }
+
+            if (!impactReactionActive)
+            {
+                impactReactionRestoreSprite = personSpriteRenderer.sprite;
+                impactReactionActive = true;
+            }
+
+            ApplyPersonSprite(reactionSprite);
+            impactReactionRoutine = StartCoroutine(RestoreImpactReactionAfterDelay());
+            return true;
+        }
+
+        private IEnumerator RestoreImpactReactionAfterDelay()
+        {
+            yield return new WaitForSeconds(Mathf.Max(0f, impactReactionDuration));
+            RestoreImpactReactionImage();
+        }
+
+        private void RestoreImpactReactionImage()
+        {
+            if (impactReactionActive && personSpriteRenderer != null)
+            {
+                ApplyPersonSprite(impactReactionRestoreSprite);
+            }
+
+            impactReactionActive = false;
+            impactReactionRestoreSprite = null;
+            impactReactionRoutine = null;
+        }
+
+        private void CancelImpactReaction(bool restore)
+        {
+            if (impactReactionRoutine != null)
+            {
+                StopCoroutine(impactReactionRoutine);
+                impactReactionRoutine = null;
+            }
+
+            if (restore)
+            {
+                RestoreImpactReactionImage();
+                return;
+            }
+
+            impactReactionActive = false;
+            impactReactionRestoreSprite = null;
+        }
+
         private void SetPersonImage(string imageName, string fallbackImageName = "")
         {
             string targetImageName = string.IsNullOrWhiteSpace(imageName) ? fallbackImageName : imageName;
@@ -728,9 +816,20 @@ namespace KimbapGame.Order
 
             if (personSpriteRenderer != null)
             {
-                personSpriteRenderer.sprite = sprite;
-                personSpriteRenderer.enabled = true;
+                CancelImpactReaction(false);
+                ApplyPersonSprite(sprite);
             }
+        }
+
+        private void ApplyPersonSprite(Sprite sprite)
+        {
+            if (personSpriteRenderer == null)
+            {
+                return;
+            }
+
+            personSpriteRenderer.sprite = sprite;
+            personSpriteRenderer.enabled = true;
         }
 
         private static Sprite LoadPersonSprite(string imageName)
@@ -839,6 +938,8 @@ namespace KimbapGame.Order
                 personSpriteRenderer = FindRootPersonSpriteRenderer();
             }
 
+            EnsureImpactResponder();
+
             if (conversationText == null)
             {
                 GameObject panel = GameObject.Find("conversationPanel") ?? GameObject.Find("conversaion panel") ?? GameObject.Find("conversation panel") ?? GameObject.Find("ConversationPanel") ?? GameObject.Find("Panel");
@@ -851,6 +952,44 @@ namespace KimbapGame.Order
                     }
                 }
             }
+        }
+
+        private void EnsureImpactResponder()
+        {
+            if (personSpriteRenderer == null)
+            {
+                return;
+            }
+
+            GameObject responderObject = FindImpactResponderObject();
+            if (responderObject == null)
+            {
+                return;
+            }
+
+            OrderPersonImpactResponder responder = responderObject.GetComponent<OrderPersonImpactResponder>();
+            if (responder == null)
+            {
+                responder = responderObject.AddComponent<OrderPersonImpactResponder>();
+            }
+
+            responder.Configure(this);
+        }
+
+        private GameObject FindImpactResponderObject()
+        {
+            Transform current = personSpriteRenderer.transform;
+            while (current != null)
+            {
+                if (current.GetComponent<Collider2D>() != null)
+                {
+                    return current.gameObject;
+                }
+
+                current = current.parent;
+            }
+
+            return personSpriteRenderer.gameObject;
         }
 
         private static TMP_Text CreateConversationText(Transform parent)

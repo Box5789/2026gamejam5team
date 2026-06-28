@@ -16,6 +16,7 @@ namespace KimbapGame.Data
         public string successImageName;
         public string failDialogue;
         public string failImageName;
+        public string matchedImageName;
         public string seaweedName;
         public int seaweedCount;
         public string riceName;
