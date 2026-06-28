@@ -9,7 +9,7 @@ namespace KimbapGame.Kitchen
     {
         private const float MinimumPickupColliderSize = 0.01f;
 
-        [SerializeField] private KitchenIngredientDefinition definition;
+        [SerializeField] public KitchenIngredientDefinition definition;
         [SerializeField] private KitchenController controller;
         [SerializeField] private KitchenDropZone dropZone;
         [SerializeField] private Camera targetCamera;

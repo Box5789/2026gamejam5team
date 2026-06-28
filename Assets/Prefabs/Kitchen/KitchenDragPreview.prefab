@@ -118,6 +118,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 324bc7640a144e87ab035d79a1df7c53, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  seaweedDropSoundName: "Kitchen/Sound/\uAE40 \uC9D1\uAE30"
+  fillingDropSoundName: "Kitchen/Sound/\uC7AC\uB8CC \uB193\uAE30_mastered"
+  soundVolume: 1
 --- !u!61 &100005
 BoxCollider2D:
   m_ObjectHideFlags: 0

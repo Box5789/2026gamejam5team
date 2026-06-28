@@ -704,6 +704,8 @@ MonoBehaviour:
   ricePaintingTableRoot: {fileID: 152001}
   ricePaintingTableIndex: 1
   slideDuration: 0.35
+  buttonSoundName: "Order/Sound/\uBC84\uD2BC"
+  soundVolume: 1
 --- !u!1 &140000
 GameObject:
   m_ObjectHideFlags: 0
@@ -1370,6 +1372,8 @@ MonoBehaviour:
   completeProgressThreshold: 0.95
   finalSeaweedSizeRatio: {x: 1, y: 0.5}
   finalFillingYScale: 0.5
+  submitSoundName: "Kitchen/Sound/\uB0B4\uBCF4\uB0B4\uAE30\uBC84\uD2BC"
+  soundVolume: 1
 --- !u!1 &155000
 GameObject:
   m_ObjectHideFlags: 0
