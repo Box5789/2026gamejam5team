@@ -14,6 +14,8 @@ namespace KimbapGame.Kitchen
         [SerializeField] private Transform ricePaintingTableRoot;
         [SerializeField] private int ricePaintingTableIndex = 1;
         [SerializeField] private float slideDuration = 0.35f;
+        [SerializeField] private string nextButtonSpriteName = "Kitchen/UI/next_table_button";
+        [SerializeField] private bool preserveNextButtonSpriteAspect = true;
         [SerializeField] private string buttonSoundName = "Order/Sound/버튼";
         [SerializeField] private float soundVolume = 1f;
 
@@ -39,6 +41,7 @@ namespace KimbapGame.Kitchen
             startPosition = this.movingTablesRoot == null ? Vector3.zero : this.movingTablesRoot.localPosition;
             currentTableIndex = ClampTableIndex(currentTableIndex, TableCount);
             RegisterButtonListener();
+            ApplyNextButtonSprite();
             UpdateRicePaintingMode();
         }
 
@@ -56,7 +59,13 @@ namespace KimbapGame.Kitchen
 
             currentTableIndex = ClampTableIndex(currentTableIndex, TableCount);
             RegisterButtonListener();
+            ApplyNextButtonSprite();
             UpdateRicePaintingMode();
+        }
+
+        private void OnValidate()
+        {
+            ApplyNextButtonSprite();
         }
 
         private void OnDestroy()
@@ -200,6 +209,15 @@ namespace KimbapGame.Kitchen
 
             nextButton.onClick.RemoveListener(GoToNextTable);
             nextButton.onClick.AddListener(GoToNextTable);
+        }
+
+        private void ApplyNextButtonSprite()
+        {
+            KitchenButtonSpriteUtility.Apply(
+                nextButton,
+                nextButtonSpriteName,
+                preserveNextButtonSpriteAspect,
+                this);
         }
 
         private void PlayButtonSound()

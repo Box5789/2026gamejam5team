@@ -23,6 +23,8 @@ namespace KimbapGame.Kitchen
         [SerializeField, Range(0.01f, 1f)] private float completeProgressThreshold = 0.95f;
         [SerializeField] private Vector2 finalSeaweedSizeRatio = new Vector2(0.92f, 0.5f);
         [SerializeField, Range(0.01f, 1f)] private float finalFillingYScale = 0.5f;
+        [SerializeField] private string submitButtonSpriteName = "Kitchen/UI/submit_kimbap_button";
+        [SerializeField] private bool preserveSubmitButtonSpriteAspect;
         [SerializeField] private string submitSoundName = "Kitchen/Sound/내보내기버튼";
         [SerializeField] private float soundVolume = 1f;
 
@@ -104,6 +106,12 @@ namespace KimbapGame.Kitchen
             }
 
             SetCompleteButtonAvailable(false);
+            ApplySubmitButtonSprites();
+        }
+
+        private void OnValidate()
+        {
+            ApplySubmitButtonSprites();
         }
 
         private void OnEnable()
@@ -112,6 +120,8 @@ namespace KimbapGame.Kitchen
             {
                 completeButton.onClick.AddListener(HandleCompleteClicked);
             }
+
+            ApplySubmitButtonSprites();
         }
 
         private void OnDisable()
@@ -525,6 +535,30 @@ namespace KimbapGame.Kitchen
 
             completeButton.gameObject.SetActive(available);
             completeButton.interactable = available;
+        }
+
+        private void ApplySubmitButtonSprites()
+        {
+            KitchenButtonSpriteUtility.Apply(
+                completeButton,
+                submitButtonSpriteName,
+                preserveSubmitButtonSpriteAspect,
+                this);
+
+            if (returnNavigator == null)
+            {
+                return;
+            }
+
+            Button returnButton = returnNavigator.GetComponent<Button>();
+            if (returnButton != null && returnButton != completeButton)
+            {
+                KitchenButtonSpriteUtility.Apply(
+                    returnButton,
+                    submitButtonSpriteName,
+                    preserveSubmitButtonSpriteAspect,
+                    this);
+            }
         }
 
         private void PrepareThrowableRollIfReady()

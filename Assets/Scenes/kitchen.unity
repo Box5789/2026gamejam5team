@@ -479,16 +479,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.15, g: 0.7, b: 0.68, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 3371046511091124701, guid: 24c0573df1b742c5b54f6089c5c9217a, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -704,6 +704,8 @@ MonoBehaviour:
   ricePaintingTableRoot: {fileID: 152001}
   ricePaintingTableIndex: 1
   slideDuration: 0.35
+  nextButtonSpriteName: Kitchen/UI/next_table_button
+  preserveNextButtonSpriteAspect: 1
   buttonSoundName: "Order/Sound/\uBC84\uD2BC"
   soundVolume: 1
 --- !u!1 &140000
@@ -1372,6 +1374,8 @@ MonoBehaviour:
   completeProgressThreshold: 0.95
   finalSeaweedSizeRatio: {x: 1, y: 0.5}
   finalFillingYScale: 0.5
+  submitButtonSpriteName: Kitchen/UI/submit_kimbap_button
+  preserveSubmitButtonSpriteAspect: 0
   submitSoundName: "Kitchen/Sound/\uB0B4\uBCF4\uB0B4\uAE30\uBC84\uD2BC"
   soundVolume: 1
 --- !u!1 &155000
@@ -1504,15 +1508,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.15, g: 0.7, b: 0.68, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 1
+  m_Sprite: {fileID: -6147692131954860042, guid: 18a3d1cedbe34ee1a83e3268524b9f25, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -1625,15 +1629,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.15, g: 0.7, b: 0.68, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 1
+  m_Sprite: {fileID: -6147692131954860042, guid: 18a3d1cedbe34ee1a83e3268524b9f25, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
