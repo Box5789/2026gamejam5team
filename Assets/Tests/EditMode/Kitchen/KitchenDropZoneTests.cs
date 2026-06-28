@@ -1,5 +1,6 @@
 using KimbapGame.Gameplay;
 using KimbapGame.Data;
+using KimbapGame.Audio;
 using KimbapGame.Kitchen;
 using NUnit.Framework;
 using UnityEditor;
@@ -9,6 +10,18 @@ namespace KimbapGame.Tests.Kitchen
 {
     public sealed class KitchenDropZoneTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            KimbapSfxPlayer.ResetDiagnosticsForTests();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            KimbapSfxPlayer.ResetDiagnosticsForTests();
+        }
+
         [Test]
         public void DraggableSeaweed_DropsAtDropZoneCenter()
         {
@@ -29,6 +42,63 @@ namespace KimbapGame.Tests.Kitchen
                 draggableItem.SendMessage("Drop", SendMessageOptions.RequireReceiver);
 
                 Assert.AreEqual(dropZone.GetCenterWorldPoint(), previewObject.transform.position);
+                Assert.AreEqual("Kitchen/Sound/김 집기", KimbapSfxPlayer.LastRequestedResourcePath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(previewObject);
+                Object.DestroyImmediate(dropZoneObject);
+                Object.DestroyImmediate(controllerObject);
+            }
+        }
+
+        [Test]
+        public void DraggableFilling_SuccessfulDropRequestsFillingDropSound()
+        {
+            GameObject controllerObject = new GameObject("KitchenController");
+            GameObject dropZoneObject = new GameObject("KitchenDropZone");
+            GameObject previewObject = CreatePreview("FillingPreview", new Vector2(2.1f, 0.4f));
+            KitchenController controller = controllerObject.AddComponent<KitchenController>();
+            KitchenDropZone dropZone = dropZoneObject.AddComponent<KitchenDropZone>();
+            KitchenIngredientDefinition filling = CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham);
+
+            try
+            {
+                previewObject.transform.position = new Vector3(0.5f, 0.25f, -1f);
+                KitchenDraggableItem draggableItem = previewObject.AddComponent<KitchenDraggableItem>();
+                draggableItem.Initialize(controller, dropZone, filling, null);
+
+                draggableItem.SendMessage("Drop", SendMessageOptions.RequireReceiver);
+
+                Assert.AreEqual("Kitchen/Sound/재료 놓기_mastered", KimbapSfxPlayer.LastRequestedResourcePath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(previewObject);
+                Object.DestroyImmediate(dropZoneObject);
+                Object.DestroyImmediate(controllerObject);
+            }
+        }
+
+        [Test]
+        public void DraggableItem_FailedDropDoesNotRequestSound()
+        {
+            GameObject controllerObject = new GameObject("KitchenController");
+            GameObject dropZoneObject = new GameObject("KitchenDropZone");
+            GameObject previewObject = CreatePreview("RejectedPreview", new Vector2(2.1f, 0.4f));
+            KitchenController controller = controllerObject.AddComponent<KitchenController>();
+            KitchenDropZone dropZone = dropZoneObject.AddComponent<KitchenDropZone>();
+            KitchenIngredientDefinition filling = CreateDefinition(KitchenIngredientCategory.Filling, IngredientType.Ham);
+
+            try
+            {
+                previewObject.transform.position = new Vector3(99f, 99f, -1f);
+                KitchenDraggableItem draggableItem = previewObject.AddComponent<KitchenDraggableItem>();
+                draggableItem.Initialize(controller, dropZone, filling, null);
+
+                draggableItem.SendMessage("Drop", SendMessageOptions.RequireReceiver);
+
+                Assert.AreEqual(0, KimbapSfxPlayer.PlayRequestCount);
             }
             finally
             {

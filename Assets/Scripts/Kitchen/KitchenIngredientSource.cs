@@ -1,3 +1,4 @@
+using KimbapGame.Audio;
 using UnityEngine;
 
 namespace KimbapGame.Kitchen
@@ -15,6 +16,10 @@ namespace KimbapGame.Kitchen
         [SerializeField] private Vector2 dragPreviewSize = new Vector2(2.2f, 0.45f);
         [SerializeField] private SpriteRenderer bowlRenderer;
         [SerializeField] private SpriteRenderer ingredientRenderer;
+        [SerializeField] private string seaweedPickupSoundName = "Kitchen/Sound/김 집기";
+        [SerializeField] private string fillingPickupSoundName = "Kitchen/Sound/재료 픽_mastered";
+        [SerializeField] private string riceSelectSoundName = "Kitchen/Sound/밥 선택_mastered";
+        [SerializeField] private float soundVolume = 1f;
 
         private void Awake()
         {
@@ -55,25 +60,29 @@ namespace KimbapGame.Kitchen
                 if (controller != null)
                 {
                     controller.SelectRice(definition);
+                    KimbapSfxPlayer.Play(this, riceSelectSoundName, soundVolume);
                 }
 
                 return;
             }
 
-            SpawnDragPreview();
+            if (SpawnDragPreview())
+            {
+                PlayPickupSound();
+            }
         }
 
-        private void SpawnDragPreview()
+        private bool SpawnDragPreview()
         {
             if (controller == null || dropZone == null)
             {
-                return;
+                return false;
             }
 
             if (definition.DragPrefab == null)
             {
                 Debug.LogWarning($"Kitchen ingredient '{definition.DisplayName}' is missing a drag prefab.");
-                return;
+                return false;
             }
 
             GameObject preview = Instantiate(definition.DragPrefab);
@@ -87,10 +96,19 @@ namespace KimbapGame.Kitchen
             {
                 Debug.LogWarning($"Drag prefab for '{definition.DisplayName}' must contain KitchenDraggableItem.");
                 Destroy(preview);
-                return;
+                return false;
             }
 
             draggable.Initialize(controller, dropZone, definition, targetCamera);
+            return true;
+        }
+
+        private void PlayPickupSound()
+        {
+            string resourcePath = definition.Category == KitchenIngredientCategory.Seaweed
+                ? seaweedPickupSoundName
+                : fillingPickupSoundName;
+            KimbapSfxPlayer.Play(this, resourcePath, soundVolume);
         }
 
         private void ApplyPlaceholderVisuals()

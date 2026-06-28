@@ -1,4 +1,5 @@
 using KimbapGame.Kitchen;
+using KimbapGame.Audio;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -8,6 +9,13 @@ namespace KimbapGame.Tests.Kitchen
     public sealed class KitchenTableNavigatorTests
     {
         private readonly System.Collections.Generic.List<GameObject> createdObjects = new System.Collections.Generic.List<GameObject>();
+
+        [SetUp]
+        public void SetUp()
+        {
+            DestroySfxPlayer();
+            KimbapSfxPlayer.ResetDiagnosticsForTests();
+        }
 
         [TearDown]
         public void TearDown()
@@ -21,6 +29,8 @@ namespace KimbapGame.Tests.Kitchen
             }
 
             createdObjects.Clear();
+            DestroySfxPlayer();
+            KimbapSfxPlayer.ResetDiagnosticsForTests();
         }
 
         [TestCase(-1, 3, 0)]
@@ -118,6 +128,68 @@ namespace KimbapGame.Tests.Kitchen
             Assert.IsFalse(bridge.PaintingEnabled);
         }
 
+        [Test]
+        public void GoToNextTable_UsesPersistentSfxSourceWhenTableChanges()
+        {
+            Transform movingRoot = CreateRoot(Vector3.zero);
+            CreateTable(movingRoot, "Seaweed Table", Vector3.zero);
+            CreateTable(movingRoot, "Rice Table", new Vector3(10f, 0f, 0f));
+            KitchenTableNavigator navigator = CreateNavigator(movingRoot);
+
+            Assert.IsNull(navigator.GetComponent<AudioSource>());
+            Assert.IsNull(GameObject.Find(KimbapSfxPlayer.PlayerObjectName));
+
+            navigator.GoToNextTable();
+
+            Assert.AreEqual(1, navigator.CurrentTableIndex);
+            Assert.IsNull(navigator.GetComponent<AudioSource>());
+            GameObject playerObject = GameObject.Find(KimbapSfxPlayer.PlayerObjectName);
+            Assert.IsNotNull(playerObject);
+            Assert.IsNotNull(playerObject.GetComponent<AudioSource>());
+            Assert.AreEqual("Order/Sound/버튼", KimbapSfxPlayer.LastRequestedResourcePath);
+        }
+
+        [Test]
+        public void GoToNextTable_DoesNotCreateAudioSourceWhenAlreadyAtLastTable()
+        {
+            Transform movingRoot = CreateRoot(Vector3.zero);
+            CreateTable(movingRoot, "Seaweed Table", Vector3.zero);
+            KitchenTableNavigator navigator = CreateNavigator(movingRoot);
+
+            navigator.GoToNextTable();
+
+            Assert.AreEqual(0, navigator.CurrentTableIndex);
+            Assert.IsNull(navigator.GetComponent<AudioSource>());
+            Assert.AreEqual(0, KimbapSfxPlayer.PlayRequestCount);
+        }
+
+        [Test]
+        public void SfxPlayer_ReusesPersistentAudioSourceForMultipleRequests()
+        {
+            Transform owner = CreateObject("SfxOwner").transform;
+
+            KimbapSfxPlayer.Play(owner, "Order/Sound/버튼", 1f);
+            GameObject firstPlayerObject = GameObject.Find(KimbapSfxPlayer.PlayerObjectName);
+            AudioSource firstSource = firstPlayerObject == null ? null : firstPlayerObject.GetComponent<AudioSource>();
+
+            KimbapSfxPlayer.Play(owner, "Order/Sound/버튼", 1f);
+
+            Assert.IsNotNull(firstPlayerObject);
+            Assert.IsNotNull(firstSource);
+            Assert.IsNull(owner.GetComponent<AudioSource>());
+            Assert.AreSame(firstSource, GameObject.Find(KimbapSfxPlayer.PlayerObjectName).GetComponent<AudioSource>());
+            Assert.AreEqual(1, CountPersistentSfxSources());
+            Assert.AreEqual(2, KimbapSfxPlayer.PlayRequestCount);
+        }
+
+        [Test]
+        public void ButtonSound_UsesOrderButtonResourceByDefault()
+        {
+            KitchenTableNavigator navigator = CreateObject("KitchenTableNavigator").AddComponent<KitchenTableNavigator>();
+
+            Assert.AreEqual("Order/Sound/버튼", GetString(navigator, "buttonSoundName"));
+        }
+
         private KitchenTableNavigator CreateNavigator(Transform movingRoot)
         {
             KitchenTableNavigator navigator = CreateObject("KitchenTableNavigator").AddComponent<KitchenTableNavigator>();
@@ -148,6 +220,30 @@ namespace KimbapGame.Tests.Kitchen
             return gameObject;
         }
 
+        private static int CountPersistentSfxSources()
+        {
+            int count = 0;
+            AudioSource[] sources = Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int i = 0; i < sources.Length; i++)
+            {
+                if (sources[i] != null && sources[i].gameObject.name == KimbapSfxPlayer.PlayerObjectName)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static void DestroySfxPlayer()
+        {
+            GameObject playerObject = GameObject.Find(KimbapSfxPlayer.PlayerObjectName);
+            if (playerObject != null)
+            {
+                Object.DestroyImmediate(playerObject);
+            }
+        }
+
         private static void SetObjectReference(Object target, string propertyPath, Object value)
         {
             SerializedObject serializedObject = new SerializedObject(target);
@@ -160,6 +256,12 @@ namespace KimbapGame.Tests.Kitchen
             SerializedObject serializedObject = new SerializedObject(target);
             serializedObject.FindProperty(propertyPath).floatValue = value;
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static string GetString(Object target, string propertyPath)
+        {
+            SerializedObject serializedObject = new SerializedObject(target);
+            return serializedObject.FindProperty(propertyPath).stringValue;
         }
 
         private static void AssertVector(Vector3 expected, Vector3 actual)
