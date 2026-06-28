@@ -3,9 +3,12 @@ guid: b71c96d6138a47e2848f91ae2db4fd6c
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - controller: {instanceID: 0}
+  - Particle: {fileID: 8384611067575593862, guid: 58caaae380de647d1ab13ab98f90a101, type: 3}
+  - Particle2: {fileID: 8384611067575593862, guid: 0022379c460614ca7b6ebc17b9b5d060, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
-  userData:
-  assetBundleName:
-  assetBundleVariant:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

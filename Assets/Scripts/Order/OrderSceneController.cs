@@ -38,7 +38,7 @@ namespace KimbapGame.Order
 
         [Header("Impact Reaction")]
         [SerializeField]
-        private float impactReactionVelocityThreshold = 2.5f;
+        public float impactReactionVelocityThreshold = 2.5f;
         [SerializeField]
         private float impactReactionDuration = 1f;
 
@@ -78,7 +78,7 @@ namespace KimbapGame.Order
 
         private readonly List<SheetOrderData> orders = new List<SheetOrderData>();
         private GoogleSheetOrderLoader loader;
-        private SheetOrderData currentOrder;
+        public SheetOrderData currentOrder;
         private int currentOrderIndex = -1;
         private System.Random orderRandom;
         private readonly List<GameObject> emotionParticleObjects = new List<GameObject>();
