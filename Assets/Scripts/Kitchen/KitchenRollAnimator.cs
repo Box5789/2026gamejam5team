@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using KimbapGame.Audio;
 using KimbapGame.Order;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,6 +23,8 @@ namespace KimbapGame.Kitchen
         [SerializeField, Range(0.01f, 1f)] private float completeProgressThreshold = 0.95f;
         [SerializeField] private Vector2 finalSeaweedSizeRatio = new Vector2(0.92f, 0.5f);
         [SerializeField, Range(0.01f, 1f)] private float finalFillingYScale = 0.5f;
+        [SerializeField] private string submitSoundName = "Kitchen/Sound/내보내기버튼";
+        [SerializeField] private float soundVolume = 1f;
 
         private readonly List<FillingPose> fillings = new List<FillingPose>();
         private Transform seaweedTransform;
@@ -159,6 +162,7 @@ namespace KimbapGame.Kitchen
                 return;
             }
 
+            KimbapSfxPlayer.Play(this, submitSoundName, soundVolume);
             controller.CompleteAndSave();
             if (returnNavigator != null)
             {

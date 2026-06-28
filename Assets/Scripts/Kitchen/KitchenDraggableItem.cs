@@ -1,3 +1,4 @@
+using KimbapGame.Audio;
 using UnityEngine;
 
 namespace KimbapGame.Kitchen
@@ -6,6 +7,10 @@ namespace KimbapGame.Kitchen
     public sealed class KitchenDraggableItem : MonoBehaviour
     {
         private const int DraggingSortingOrder = 100;
+
+        [SerializeField] private string seaweedDropSoundName = "Kitchen/Sound/김 집기";
+        [SerializeField] private string fillingDropSoundName = "Kitchen/Sound/재료 놓기_mastered";
+        [SerializeField] private float soundVolume = 1f;
 
         private KitchenController controller;
         private KitchenDropZone dropZone;
@@ -80,6 +85,7 @@ namespace KimbapGame.Kitchen
             LogRegistrationDebug(
                 $"Drop registered category='{definition.Category}' ingredient='{definition.DisplayName}' object='{name}' sorting={droppedSortingOrder}");
             ApplySortingOrder(droppedSortingOrder);
+            PlayDropSound();
 
             Collider2D itemCollider = GetComponent<Collider2D>();
             if (itemCollider != null)
@@ -114,6 +120,14 @@ namespace KimbapGame.Kitchen
             }
 
             return dropZone.ContainsWorldPoint(transform.position) ? "unknown" : "outside-drop-zone";
+        }
+
+        private void PlayDropSound()
+        {
+            string resourcePath = definition.Category == KitchenIngredientCategory.Seaweed
+                ? seaweedDropSoundName
+                : fillingDropSoundName;
+            KimbapSfxPlayer.Play(this, resourcePath, soundVolume);
         }
 
         private void ApplySortingOrder(int sortingOrder)

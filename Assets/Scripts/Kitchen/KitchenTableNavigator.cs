@@ -1,4 +1,5 @@
 using System;
+using KimbapGame.Audio;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,6 +14,8 @@ namespace KimbapGame.Kitchen
         [SerializeField] private Transform ricePaintingTableRoot;
         [SerializeField] private int ricePaintingTableIndex = 1;
         [SerializeField] private float slideDuration = 0.35f;
+        [SerializeField] private string buttonSoundName = "Order/Sound/버튼";
+        [SerializeField] private float soundVolume = 1f;
 
         private int currentTableIndex;
         private Vector3 startPosition;
@@ -85,7 +88,14 @@ namespace KimbapGame.Kitchen
 
         public void GoToNextTable()
         {
-            SetTableIndex(currentTableIndex + 1);
+            int nextTableIndex = ClampTableIndex(currentTableIndex + 1, TableCount);
+            if (nextTableIndex == currentTableIndex)
+            {
+                return;
+            }
+
+            PlayButtonSound();
+            SetTableIndex(nextTableIndex);
         }
 
         public void SetTableIndex(int tableIndex)
@@ -190,6 +200,11 @@ namespace KimbapGame.Kitchen
 
             nextButton.onClick.RemoveListener(GoToNextTable);
             nextButton.onClick.AddListener(GoToNextTable);
+        }
+
+        private void PlayButtonSound()
+        {
+            KimbapSfxPlayer.Play(this, buttonSoundName, soundVolume);
         }
     }
 }
