@@ -20,6 +20,7 @@ namespace KimbapGame.Evaluation
         private const float AssemblyScore = 10f;
         private const float DetailScore = 10f;
         private const float CriticalFailureScoreCap = 39f;
+        private const float MissingCoreRequirementScoreCap = 59f;
         private const string IngredientsCsvRelativePath = "Kitchen/ingredients.csv";
 
         private static readonly Dictionary<string, string[]> TokenAliases = new Dictionary<string, string[]>
@@ -167,7 +168,7 @@ namespace KimbapGame.Evaluation
             float score = RiceCombinationScore * ((float)matched / profile.requiredRiceTokens.Count);
             if (matched == profile.requiredRiceTokens.Count && profile.requiredRiceTokens.Count > 1)
             {
-                score -= EstimateRiceRatioPenalty(profile, prepared);
+                score *= CalculateRiceRatioMultiplier(profile, prepared);
             }
 
             return Clamp(score, 0f, RiceCombinationScore);
@@ -213,13 +214,24 @@ namespace KimbapGame.Evaluation
                 return FillingScore * 0.2f;
             }
 
+            int expectedCount = profile.expectedFillingCount;
+            float countRatio = 1f;
+            if (expectedCount > 0)
+            {
+                int matchedCount = profile.requiredFillingTokens.Count == 0
+                    ? prepared.fillings.Count
+                    : CountItemsMatchingAnyToken(prepared.fillings, profile.requiredFillingTokens);
+                countRatio = Clamp((float)matchedCount / expectedCount, 0f, 1f);
+            }
+
             if (profile.requiredFillingTokens.Count == 0)
             {
-                return FillingScore;
+                return FillingScore * countRatio;
             }
 
             int matched = CountMatchedTokens(profile.requiredFillingTokens, prepared.fillings);
-            return FillingScore * ((float)matched / profile.requiredFillingTokens.Count);
+            float tokenRatio = (float)matched / profile.requiredFillingTokens.Count;
+            return FillingScore * tokenRatio * countRatio;
         }
 
         private static float ScorePrice(EvaluationProfile profile, PreparedKimbapData prepared)
@@ -261,12 +273,36 @@ namespace KimbapGame.Evaluation
             {
                 result.baseScore = Math.Min(result.baseScore, CriticalFailureScoreCap);
             }
+
+            if (HasMissingRequiredFillings(profile, prepared))
+            {
+                result.baseScore = Math.Min(result.baseScore, MissingCoreRequirementScoreCap);
+            }
         }
 
         private static bool HasMissingRequiredSpecial(EvaluationProfile profile, PreparedKimbapData prepared)
         {
             return profile.requiredSpecialTokens.Count > 0
                 && CountMatchedTokens(profile.requiredSpecialTokens, prepared.AllItems) < profile.requiredSpecialTokens.Count;
+        }
+
+        private static bool HasMissingRequiredFillings(EvaluationProfile profile, PreparedKimbapData prepared)
+        {
+            if (profile.requiredFillingTokens.Count > 0
+                && CountMatchedTokens(profile.requiredFillingTokens, prepared.fillings) < profile.requiredFillingTokens.Count)
+            {
+                return true;
+            }
+
+            if (profile.expectedFillingCount <= 0)
+            {
+                return false;
+            }
+
+            int matchedCount = profile.requiredFillingTokens.Count == 0
+                ? prepared.fillings.Count
+                : CountItemsMatchingAnyToken(prepared.fillings, profile.requiredFillingTokens);
+            return matchedCount < profile.expectedFillingCount;
         }
 
         private static float ScoreAssembly(PreparedKimbapData prepared)
@@ -302,6 +338,24 @@ namespace KimbapGame.Evaluation
                 if (ContainsToken(items, token))
                 {
                     matched++;
+                }
+            }
+
+            return matched;
+        }
+
+        private static int CountItemsMatchingAnyToken(IEnumerable<PreparedKimbapItem> items, IReadOnlyList<string> requiredTokens)
+        {
+            int matched = 0;
+            foreach (PreparedKimbapItem item in items)
+            {
+                for (int i = 0; i < requiredTokens.Count; i++)
+                {
+                    if (ItemContains(item, requiredTokens[i]))
+                    {
+                        matched++;
+                        break;
+                    }
                 }
             }
 
@@ -468,22 +522,22 @@ namespace KimbapGame.Evaluation
             return ItemContains(item, "foil") || ItemContains(item, "stone");
         }
 
-        private static float EstimateRiceRatioPenalty(EvaluationProfile profile, PreparedKimbapData prepared)
+        private static float CalculateRiceRatioMultiplier(EvaluationProfile profile, PreparedKimbapData prepared)
         {
             if (profile.riceRatioTokens.Count == 0 || prepared.riceItems.Count == 0)
             {
-                return 0f;
+                return 1f;
             }
 
-            float penalty = 0f;
+            float totalDifference = 0f;
             foreach (KeyValuePair<string, float> pair in profile.riceRatioTokens)
             {
                 int count = prepared.riceItems.Count(item => ItemContains(item, pair.Key));
                 float actualRatio = (float)count / prepared.riceItems.Count;
-                penalty += Math.Abs(actualRatio - pair.Value) * 4f;
+                totalDifference += Math.Abs(actualRatio - pair.Value);
             }
 
-            return Clamp(penalty, 0f, 4f);
+            return Clamp(1f - totalDifference, 0f, 1f);
         }
 
         private static int CalculatePrice(PreparedKimbapData prepared)
@@ -550,6 +604,7 @@ namespace KimbapGame.Evaluation
             public float targetPrice;
             public string requiredSeaweedToken;
             public int expectedRiceCount;
+            public int expectedFillingCount;
             public bool requiresExactOrder;
             public readonly List<string> requiredRiceTokens = new List<string>();
             public readonly List<string> requiredFillingTokens = new List<string>();
@@ -565,9 +620,15 @@ namespace KimbapGame.Evaluation
                 profile.targetPrice = ParseTargetPrice(text);
                 profile.requiredSeaweedToken = ParseSeaweedToken(text, order.seaweedName);
                 profile.expectedRiceCount = order.riceCount;
+                profile.expectedFillingCount = Math.Max(order.fillingCount, ParseFillingCount(text));
                 profile.requiresExactOrder = ContainsAny(text, "순서", "차례", "먼저", "order");
                 AddRiceRequirements(profile, text, order.riceName);
                 AddFillingRequirements(profile, text, order.fillingName, order.ingredients);
+                if (profile.expectedFillingCount < profile.requiredFillingTokens.Count)
+                {
+                    profile.expectedFillingCount = profile.requiredFillingTokens.Count;
+                }
+
                 AddSpecialRequirements(profile, text);
                 AddForbiddenRequirements(profile, text);
                 AddRiceRatioRequirements(profile, text);
@@ -614,6 +675,59 @@ namespace KimbapGame.Evaluation
 
                 string number = normalized.Substring(start + 1, keywordIndex - start - 1);
                 return float.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed) ? parsed : 0f;
+            }
+
+            private static int ParseFillingCount(string text)
+            {
+                string normalized = Normalize(text).Replace(",", string.Empty);
+                int bestCount = 0;
+                for (int i = 0; i < normalized.Length; i++)
+                {
+                    if (normalized[i] != '개')
+                    {
+                        continue;
+                    }
+
+                    int start = i - 1;
+                    while (start >= 0 && char.IsDigit(normalized[start]))
+                    {
+                        start--;
+                    }
+
+                    if (start < i - 1)
+                    {
+                        string digits = normalized.Substring(start + 1, i - start - 1);
+                        if (int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+                        {
+                            bestCount = Math.Max(bestCount, parsed);
+                        }
+                    }
+
+                    string prefix = normalized.Substring(0, i);
+                    bestCount = Math.Max(bestCount, ParseKoreanCountSuffix(prefix));
+                }
+
+                return bestCount;
+            }
+
+            private static int ParseKoreanCountSuffix(string value)
+            {
+                if (string.IsNullOrEmpty(value)) return 0;
+                if (value.EndsWith("한")) return 1;
+                if (value.EndsWith("하나")) return 1;
+                if (value.EndsWith("두")) return 2;
+                if (value.EndsWith("둘")) return 2;
+                if (value.EndsWith("세")) return 3;
+                if (value.EndsWith("셋")) return 3;
+                if (value.EndsWith("네")) return 4;
+                if (value.EndsWith("넷")) return 4;
+                if (value.EndsWith("다섯")) return 5;
+                if (value.EndsWith("여섯")) return 6;
+                if (value.EndsWith("일곱")) return 7;
+                if (value.EndsWith("여덟")) return 8;
+                if (value.EndsWith("아홉")) return 9;
+                if (value.EndsWith("열")) return 10;
+                return 0;
             }
 
             private static string ParseSeaweedToken(string text, string seaweedName)
@@ -676,6 +790,16 @@ namespace KimbapGame.Evaluation
 
             private static void AddRiceRatioRequirements(EvaluationProfile profile, string text)
             {
+                if (TryAddColonRiceRatio(profile, text))
+                {
+                    return;
+                }
+
+                if (TryAddPercentRiceRatio(profile, text))
+                {
+                    return;
+                }
+
                 if (ContainsAny(text, "7:3", "70%"))
                 {
                     profile.riceRatioTokens["white"] = 0.7f;
@@ -687,6 +811,91 @@ namespace KimbapGame.Evaluation
                     profile.riceRatioTokens["white"] = 0.6f;
                     profile.riceRatioTokens["brown"] = 0.4f;
                 }
+            }
+
+            private static bool TryAddColonRiceRatio(EvaluationProfile profile, string text)
+            {
+                string normalized = Normalize(text);
+                for (int i = 0; i < normalized.Length; i++)
+                {
+                    if (normalized[i] != ':')
+                    {
+                        continue;
+                    }
+
+                    int leftStart = i - 1;
+                    while (leftStart >= 0 && char.IsDigit(normalized[leftStart]))
+                    {
+                        leftStart--;
+                    }
+
+                    int rightEnd = i + 1;
+                    while (rightEnd < normalized.Length && char.IsDigit(normalized[rightEnd]))
+                    {
+                        rightEnd++;
+                    }
+
+                    if (leftStart == i - 1 || rightEnd == i + 1)
+                    {
+                        continue;
+                    }
+
+                    string left = normalized.Substring(leftStart + 1, i - leftStart - 1);
+                    string right = normalized.Substring(i + 1, rightEnd - i - 1);
+                    if (!float.TryParse(left, NumberStyles.Float, CultureInfo.InvariantCulture, out float leftValue)
+                        || !float.TryParse(right, NumberStyles.Float, CultureInfo.InvariantCulture, out float rightValue)
+                        || leftValue <= 0f
+                        || rightValue <= 0f)
+                    {
+                        continue;
+                    }
+
+                    float total = leftValue + rightValue;
+                    AssignPrimarySecondaryRiceRatios(profile, leftValue / total, rightValue / total);
+                    return true;
+                }
+
+                return false;
+            }
+
+            private static bool TryAddPercentRiceRatio(EvaluationProfile profile, string text)
+            {
+                string normalized = Normalize(text);
+                int percentIndex = normalized.IndexOf("%", StringComparison.Ordinal);
+                if (percentIndex < 0)
+                {
+                    return false;
+                }
+
+                int start = percentIndex - 1;
+                while (start >= 0 && char.IsDigit(normalized[start]))
+                {
+                    start--;
+                }
+
+                if (start == percentIndex - 1)
+                {
+                    return false;
+                }
+
+                string number = normalized.Substring(start + 1, percentIndex - start - 1);
+                if (!float.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out float percent)
+                    || percent <= 0f
+                    || percent >= 100f)
+                {
+                    return false;
+                }
+
+                AssignPrimarySecondaryRiceRatios(profile, percent / 100f, 1f - (percent / 100f));
+                return true;
+            }
+
+            private static void AssignPrimarySecondaryRiceRatios(EvaluationProfile profile, float primaryRatio, float secondaryRatio)
+            {
+                string primaryToken = profile.requiredRiceTokens.Count > 0 ? profile.requiredRiceTokens[0] : "white";
+                string secondaryToken = profile.requiredRiceTokens.Count > 1 ? profile.requiredRiceTokens[1] : "brown";
+                profile.riceRatioTokens[primaryToken] = primaryRatio;
+                profile.riceRatioTokens[secondaryToken] = secondaryRatio;
             }
 
             private static void AddIfMentioned(List<string> target, string source, string token, params string[] keywords)
