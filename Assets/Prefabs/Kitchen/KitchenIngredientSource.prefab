@@ -119,6 +119,10 @@ MonoBehaviour:
   dragPreviewSize: {x: 2.2, y: 0.45}
   bowlRenderer: {fileID: 0}
   ingredientRenderer: {fileID: 100022}
+  seaweedPickupSoundName: "Kitchen/Sound/\uAE40 \uC9D1\uAE30"
+  fillingPickupSoundName: "Kitchen/Sound/\uC7AC\uB8CC \uD53D_mastered"
+  riceSelectSoundName: "Kitchen/Sound/\uBC25 \uC120\uD0DD_mastered"
+  soundVolume: 1
 --- !u!1 &100020
 GameObject:
   m_ObjectHideFlags: 0

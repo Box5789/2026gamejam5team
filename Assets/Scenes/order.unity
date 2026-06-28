@@ -520,6 +520,8 @@ MonoBehaviour:
   refuseButton: {fileID: 0}
   toKitchenButton: {fileID: 0}
   confirmButton: {fileID: 0}
+  impactReactionVelocityThreshold: 50
+  impactReactionDuration: 1
   buttonSoundName: "Order/Sound/\uBC84\uD2BC"
   successReactionSoundName: "Order/Sound/\uC190\uB2D8\uBC18\uC751-\uC131\uACF5"
   failReactionSoundName: "Order/Sound/\uC190\uB2D8\uBC18\uC751-\uC2E4\uD328"
