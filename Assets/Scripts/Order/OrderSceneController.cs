@@ -86,6 +86,8 @@ namespace KimbapGame.Order
         private Coroutine impactReactionRoutine;
         private Sprite impactReactionRestoreSprite;
         private bool impactReactionActive;
+        private bool isLoadingOrders;
+        private bool showNextOrderAfterLoad;
         private AudioSource orderAudioSource;
 
         private void Awake()
@@ -294,13 +296,19 @@ namespace KimbapGame.Order
 
         private IEnumerator LoadOrders()
         {
+            isLoadingOrders = true;
             yield return loader.LoadOrders(
                 loadedOrders =>
                 {
                     orders.Clear();
                     orders.AddRange(loadedOrders);
 
-                    if (!TryShowPendingEvaluationResult() && !TryRestoreCurrentOrder())
+                    if (showNextOrderAfterLoad)
+                    {
+                        showNextOrderAfterLoad = false;
+                        ShowNextOrder();
+                    }
+                    else if (!TryShowPendingEvaluationResult() && !TryRestoreCurrentOrder())
                     {
                         ShowNextOrder();
                     }
@@ -308,11 +316,13 @@ namespace KimbapGame.Order
                 error =>
                 {
                     Debug.LogWarning($"Order sheet load failed: {error}");
+                    showNextOrderAfterLoad = false;
                     if (!TryShowPendingEvaluationResult())
                     {
                         SetConversation(errorMessage);
                     }
                 });
+            isLoadingOrders = false;
         }
 
         private bool TryRestoreCurrentOrder()
@@ -414,6 +424,18 @@ namespace KimbapGame.Order
             PlayButtonSound();
             ClearEmotionParticles();
             SharedOrderContext.Clear();
+            if (orders.Count == 0)
+            {
+                showNextOrderAfterLoad = true;
+                SetConversation(loadingMessage);
+                if (!isLoadingOrders)
+                {
+                    StartCoroutine(LoadOrders());
+                }
+
+                return;
+            }
+
             ShowNextOrder();
         }
 
