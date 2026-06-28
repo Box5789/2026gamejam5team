@@ -83,6 +83,17 @@ namespace KimbapGame.Order
                     fillingCount = ParseCount(CsvTableParser.GetAny(row, header, "속-개수", "속-갯수", "속개수", "속갯수", "속재료개수", "FillingCount"))
                 };
 
+                order.matchedImageName = CsvTableParser.GetAny(
+                    row,
+                    header,
+                    "맞음-이미지",
+                    "맞음이미지",
+                    "맞음 이미지",
+                    "MatchImage",
+                    "MatchedImage",
+                    "ImpactImage",
+                    "HitImage");
+
                 AddRepeatedIngredient(order.ingredients, order.seaweedName, order.seaweedCount, IngredientType.Seaweed);
                 AddRepeatedIngredient(order.ingredients, order.riceName, order.riceCount, IngredientType.Rice);
                 AddRepeatedIngredient(order.ingredients, order.fillingName, order.fillingCount, IngredientType.GenericFilling);
