@@ -74,6 +74,7 @@ namespace KimbapGame.Order
         private GoogleSheetOrderLoader loader;
         private SheetOrderData currentOrder;
         private int currentOrderIndex = -1;
+        private System.Random orderRandom;
         private readonly List<GameObject> emotionParticleObjects = new List<GameObject>();
         private Coroutine emotionParticleRoutine;
         private AudioSource orderAudioSource;
@@ -82,6 +83,7 @@ namespace KimbapGame.Order
         {
             loader = GetComponent<GoogleSheetOrderLoader>();
             loader.CsvUrl = sheetCsvUrl;
+            orderRandom = new System.Random(System.Guid.NewGuid().GetHashCode());
             AutoBindMissingReferences();
             EnsureAudioSource();
         }
@@ -341,10 +343,17 @@ namespace KimbapGame.Order
             }
             else
             {
-                int nextIndex = Random.Range(0, orders.Count);
-                if (nextIndex == currentOrderIndex)
+                if (orderRandom == null)
                 {
-                    nextIndex = (nextIndex + 1) % orders.Count;
+                    orderRandom = new System.Random(System.Guid.NewGuid().GetHashCode());
+                }
+
+                bool hasCurrentOrder = currentOrderIndex >= 0 && currentOrderIndex < orders.Count;
+                int randomRange = hasCurrentOrder ? orders.Count - 1 : orders.Count;
+                int nextIndex = orderRandom.Next(0, randomRange);
+                if (hasCurrentOrder && nextIndex >= currentOrderIndex)
+                {
+                    nextIndex++;
                 }
 
                 currentOrderIndex = nextIndex;

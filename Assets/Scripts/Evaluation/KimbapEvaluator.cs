@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using KimbapGame.Data;
 using KimbapGame.Kitchen;
+using UnityEngine;
 
 namespace KimbapGame.Evaluation
 {
@@ -17,6 +19,31 @@ namespace KimbapGame.Evaluation
         private const float SpecialScore = 5f;
         private const float AssemblyScore = 10f;
         private const float DetailScore = 10f;
+        private const float CriticalFailureScoreCap = 39f;
+        private const string IngredientsCsvRelativePath = "Kitchen/ingredients.csv";
+
+        private static readonly Dictionary<string, string[]> TokenAliases = new Dictionary<string, string[]>
+        {
+            { "seaweed", new[] { "김", "기본김", "김밥김", "seaweed", "r1" } },
+            { "sesame", new[] { "참기름", "참기름김", "sesame", "r2" } },
+            { "roasted", new[] { "구운김", "구운", "굽", "roasted", "r3" } },
+            { "wet", new[] { "적신김", "적신", "젖은", "wet", "r4" } },
+            { "foil", new[] { "호일", "알루미늄호일", "알류미늄호일", "aluminumfoil", "aluminiumfoil", "foil", "r5" } },
+            { "white", new[] { "흰쌀밥", "흰밥", "쌀밥", "백미", "white", "whiterice", "r16" } },
+            { "brown", new[] { "현미밥", "현미", "brown", "brownrice", "r17" } },
+            { "black", new[] { "흑미밥", "흑미", "black", "blackrice", "r18" } },
+            { "ham", new[] { "햄", "ham", "r31" } },
+            { "egg", new[] { "계란", "달걀", "계란지단", "달걀말이", "스크램블에그", "egg", "r30", "r91", "r92" } },
+            { "carrot", new[] { "당근", "carrot", "r28" } },
+            { "spinach", new[] { "시금치", "spinach", "r29" } },
+            { "pickledradish", new[] { "단무지", "pickledradish", "radish", "r26" } },
+            { "tuna", new[] { "참치", "참치마요", "tuna", "r35" } },
+            { "crabmeat", new[] { "맛살", "게맛살", "크래미", "crabmeat", "crab", "r32", "r47" } },
+            { "cucumber", new[] { "오이", "cucumber", "r33" } },
+            { "stone", new[] { "돌", "돌멩이", "돌맹이", "stone", "rock", "r97" } }
+        };
+
+        private static List<CatalogIngredient> catalogIngredients;
 
         public static KimbapEvaluationResult Evaluate(SheetOrderData order, PreparedKimbapData preparedKimbap)
         {
@@ -39,6 +66,7 @@ namespace KimbapGame.Evaluation
             result.AddCategory("Special ingredients", SpecialScore, ScoreSpecialIngredients(profile, prepared), string.Empty);
             result.AddCategory("Assembly", AssemblyScore, ScoreAssembly(prepared), string.Empty);
             result.AddCategory("Details", DetailScore, ScoreDetails(profile, prepared), string.Empty);
+            ApplyCriticalFailureCap(result, profile, prepared);
             result.FinalizeScore(profile.maxScore, order.successDialogue, order.successImageName, order.failDialogue, order.failImageName);
             return result;
         }
@@ -85,7 +113,7 @@ namespace KimbapGame.Evaluation
             string[] items = serializedItems.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < items.Length; i++)
             {
-                string[] parts = items[i].Split(new[] { ':' }, 2);
+                string[] parts = items[i].Split(new[] { ':' }, 3);
                 IngredientType ingredientType = IngredientType.Ham;
                 if (parts.Length > 0)
                 {
@@ -93,7 +121,13 @@ namespace KimbapGame.Evaluation
                 }
 
                 string variantId = parts.Length > 1 ? parts[1] : ingredientType.ToString();
-                target.Add(new PreparedKimbapItem(ingredientType, category, variantId, variantId));
+                string displayName = parts.Length > 2 ? parts[2] : GetCatalogDisplayName(variantId);
+                if (string.IsNullOrWhiteSpace(displayName))
+                {
+                    displayName = variantId;
+                }
+
+                target.Add(new PreparedKimbapItem(ingredientType, category, variantId, displayName));
             }
         }
 
@@ -216,6 +250,25 @@ namespace KimbapGame.Evaluation
             return SpecialScore * ((float)matched / profile.requiredSpecialTokens.Count);
         }
 
+        private static void ApplyCriticalFailureCap(KimbapEvaluationResult result, EvaluationProfile profile, PreparedKimbapData prepared)
+        {
+            if (result == null || profile == null || prepared == null)
+            {
+                return;
+            }
+
+            if (HasMissingRequiredSpecial(profile, prepared) || HasUnrequestedSpecial(prepared.AllItems, profile))
+            {
+                result.baseScore = Math.Min(result.baseScore, CriticalFailureScoreCap);
+            }
+        }
+
+        private static bool HasMissingRequiredSpecial(EvaluationProfile profile, PreparedKimbapData prepared)
+        {
+            return profile.requiredSpecialTokens.Count > 0
+                && CountMatchedTokens(profile.requiredSpecialTokens, prepared.AllItems) < profile.requiredSpecialTokens.Count;
+        }
+
         private static float ScoreAssembly(PreparedKimbapData prepared)
         {
             if (prepared.seaweeds.Count == 0 || prepared.riceItems.Count == 0 || prepared.fillings.Count == 0)
@@ -275,11 +328,98 @@ namespace KimbapGame.Evaluation
                 return false;
             }
 
+            List<string> itemValues = GetItemSearchValues(item);
+            List<string> tokenValues = GetTokenSearchValues(token);
+            for (int i = 0; i < tokenValues.Count; i++)
+            {
+                string normalizedToken = Normalize(tokenValues[i]);
+                if (string.IsNullOrEmpty(normalizedToken))
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < itemValues.Count; j++)
+                {
+                    if (ContainsNormalized(itemValues[j], normalizedToken))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static List<string> GetItemSearchValues(PreparedKimbapItem item)
+        {
+            List<string> values = new List<string>
+            {
+                item.variantId,
+                item.displayName,
+                item.ingredientType.ToString(),
+                ToToken(item.ingredientType)
+            };
+
+            AddCatalogAliases(values, item.variantId);
+            AddCatalogAliases(values, item.displayName);
+            return values;
+        }
+
+        private static List<string> GetTokenSearchValues(string token)
+        {
+            List<string> values = new List<string>();
+            AddUniqueRaw(values, token);
+
             string normalizedToken = Normalize(token);
-            return ContainsNormalized(item.variantId, normalizedToken)
-                || ContainsNormalized(item.displayName, normalizedToken)
-                || ContainsNormalized(item.ingredientType.ToString(), normalizedToken)
-                || ContainsNormalized(ToToken(item.ingredientType), normalizedToken);
+            if (TokenAliases.TryGetValue(normalizedToken, out string[] aliases))
+            {
+                for (int i = 0; i < aliases.Length; i++)
+                {
+                    AddUniqueRaw(values, aliases[i]);
+                }
+            }
+
+            AddCatalogAliases(values, token);
+            return values;
+        }
+
+        private static void AddCatalogAliases(List<string> values, string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return;
+            }
+
+            string normalizedToken = Normalize(token);
+            foreach (CatalogIngredient ingredient in GetCatalogIngredients())
+            {
+                if (ingredient.ContainsAlias(normalizedToken))
+                {
+                    for (int i = 0; i < ingredient.aliases.Count; i++)
+                    {
+                        AddUniqueRaw(values, ingredient.aliases[i]);
+                    }
+                }
+            }
+        }
+
+        private static void AddUniqueRaw(List<string> values, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            string normalizedValue = Normalize(value);
+            for (int i = 0; i < values.Count; i++)
+            {
+                if (Normalize(values[i]) == normalizedValue)
+                {
+                    return;
+                }
+            }
+
+            values.Add(value);
         }
 
         private static bool ContainsNormalized(string value, string normalizedToken)
@@ -325,7 +465,7 @@ namespace KimbapGame.Evaluation
 
         private static bool IsSpecialItem(PreparedKimbapItem item)
         {
-            return ItemContains(item, "foil") || ItemContains(item, "호일") || ItemContains(item, "stone") || ItemContains(item, "rock") || ItemContains(item, "돌") || ItemContains(item, "돌멩이");
+            return ItemContains(item, "foil") || ItemContains(item, "stone");
         }
 
         private static float EstimateRiceRatioPenalty(EvaluationProfile profile, PreparedKimbapData prepared)
@@ -479,7 +619,7 @@ namespace KimbapGame.Evaluation
             private static string ParseSeaweedToken(string text, string seaweedName)
             {
                 string source = Join(text, seaweedName);
-                if (ContainsAny(source, "호일", "foil")) return "foil";
+                if (ContainsAny(source, "호일", "알루미늄 호일", "알류미늄 호일", "aluminum foil", "aluminium foil", "foil")) return "foil";
                 if (ContainsAny(source, "참기름", "sesame")) return "sesame";
                 if (ContainsAny(source, "구운", "굽", "roasted")) return "roasted";
                 if (ContainsAny(source, "적신", "젖은", "wet")) return "wet";
@@ -507,19 +647,22 @@ namespace KimbapGame.Evaluation
                 AddIfMentioned(profile.requiredFillingTokens, source, "pickledradish", "단무지", "pickled radish", "radish");
                 AddIfMentioned(profile.requiredFillingTokens, source, "tuna", "참치", "tuna");
                 AddIfMentioned(profile.requiredFillingTokens, source, "crabmeat", "맛살", "게맛살", "크래미", "crab");
+                AddIfMentioned(profile.requiredFillingTokens, source, "stone", "돌멩이", "돌맹이", "돌", "stone", "rock");
+                AddCatalogFillingRequirements(profile, source);
 
                 if (ingredients == null) return;
                 foreach (IngredientType ingredient in ingredients)
                 {
                     if (ingredient == IngredientType.Seaweed || ingredient == IngredientType.Rice) continue;
+                    if (ingredient == IngredientType.GenericFilling) continue;
                     AddUnique(profile.requiredFillingTokens, ToToken(ingredient));
                 }
             }
 
             private static void AddSpecialRequirements(EvaluationProfile profile, string text)
             {
-                AddIfMentioned(profile.requiredSpecialTokens, text, "foil", "호일", "foil");
-                AddIfMentioned(profile.requiredSpecialTokens, text, "stone", "돌멩이", "돌", "stone", "rock");
+                AddIfMentioned(profile.requiredSpecialTokens, text, "foil", "호일", "알루미늄 호일", "알류미늄 호일", "aluminum foil", "aluminium foil", "foil");
+                AddIfMentioned(profile.requiredSpecialTokens, text, "stone", "돌멩이", "돌맹이", "돌", "stone", "rock");
             }
 
             private static void AddForbiddenRequirements(EvaluationProfile profile, string text)
@@ -554,6 +697,26 @@ namespace KimbapGame.Evaluation
                 }
             }
 
+            private static void AddCatalogFillingRequirements(EvaluationProfile profile, string source)
+            {
+                foreach (CatalogIngredient ingredient in GetCatalogIngredients())
+                {
+                    if (!ingredient.IsFilling)
+                    {
+                        continue;
+                    }
+
+                    for (int i = 0; i < ingredient.aliases.Count; i++)
+                    {
+                        if (ContainsAny(source, ingredient.aliases[i]))
+                        {
+                            AddUnique(profile.requiredFillingTokens, ingredient.id);
+                            break;
+                        }
+                    }
+                }
+            }
+
             private static void AddUnique(List<string> target, string token)
             {
                 string normalized = Normalize(token);
@@ -575,6 +738,182 @@ namespace KimbapGame.Evaluation
                 }
 
                 return false;
+            }
+        }
+
+        private static string GetCatalogDisplayName(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return string.Empty;
+            }
+
+            string normalizedId = Normalize(id);
+            foreach (CatalogIngredient ingredient in GetCatalogIngredients())
+            {
+                if (Normalize(ingredient.id) == normalizedId)
+                {
+                    return ingredient.displayName;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static List<CatalogIngredient> GetCatalogIngredients()
+        {
+            if (catalogIngredients != null)
+            {
+                return catalogIngredients;
+            }
+
+            catalogIngredients = LoadCatalogIngredients();
+            return catalogIngredients;
+        }
+
+        private static List<CatalogIngredient> LoadCatalogIngredients()
+        {
+            string path = FindIngredientsCsvPath();
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                return new List<CatalogIngredient>();
+            }
+
+            try
+            {
+                List<List<string>> rows = CsvTableParser.Parse(File.ReadAllText(path));
+                if (rows.Count <= 1)
+                {
+                    return new List<CatalogIngredient>();
+                }
+
+                Dictionary<string, int> header = CsvTableParser.BuildHeader(rows[0]);
+                List<CatalogIngredient> ingredients = new List<CatalogIngredient>();
+                for (int i = 1; i < rows.Count; i++)
+                {
+                    List<string> row = rows[i];
+                    if (CsvTableParser.IsEmptyRow(row))
+                    {
+                        continue;
+                    }
+
+                    string id = CsvTableParser.GetAny(row, header, "Index");
+                    string displayName = CsvTableParser.GetAny(row, header, "이름", "Name");
+                    string category = CsvTableParser.GetAny(row, header, "분류", "Category");
+                    if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(displayName))
+                    {
+                        continue;
+                    }
+
+                    ingredients.Add(new CatalogIngredient(id, displayName, category));
+                }
+
+                return ingredients;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"Failed to load ingredient aliases for evaluation: {exception.Message}");
+                return new List<CatalogIngredient>();
+            }
+        }
+
+        private static string FindIngredientsCsvPath()
+        {
+            List<string> candidates = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Application.streamingAssetsPath))
+            {
+                candidates.Add(Path.Combine(Application.streamingAssetsPath, IngredientsCsvRelativePath));
+            }
+
+            candidates.Add(Path.Combine(Environment.CurrentDirectory, "Assets", "StreamingAssets", IngredientsCsvRelativePath));
+            candidates.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "StreamingAssets", IngredientsCsvRelativePath));
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (File.Exists(candidates[i]))
+                {
+                    return candidates[i];
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private sealed class CatalogIngredient
+        {
+            public readonly string id;
+            public readonly string displayName;
+            public readonly string category;
+            public readonly List<string> aliases = new List<string>();
+
+            public CatalogIngredient(string id, string displayName, string category)
+            {
+                this.id = id ?? string.Empty;
+                this.displayName = displayName ?? string.Empty;
+                this.category = category ?? string.Empty;
+                AddAlias(id);
+                AddAlias(displayName);
+            }
+
+            public bool IsFilling => Normalize(category) == "속" || Normalize(category) == "filling";
+
+            public void AddAlias(string value)
+            {
+                AddUniqueRaw(aliases, value);
+            }
+
+            public bool ContainsAlias(string normalizedToken)
+            {
+                if (string.IsNullOrEmpty(normalizedToken))
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < aliases.Count; i++)
+                {
+                    string normalizedAlias = Normalize(aliases[i]);
+                    if (string.IsNullOrEmpty(normalizedAlias))
+                    {
+                        continue;
+                    }
+
+                    if (IsCatalogId(normalizedAlias) || IsCatalogId(normalizedToken))
+                    {
+                        if (normalizedAlias == normalizedToken)
+                        {
+                            return true;
+                        }
+
+                        continue;
+                    }
+
+                    if (normalizedAlias == normalizedToken
+                        || normalizedAlias.IndexOf(normalizedToken, StringComparison.OrdinalIgnoreCase) >= 0
+                        || normalizedToken.IndexOf(normalizedAlias, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            private static bool IsCatalogId(string value)
+            {
+                if (string.IsNullOrEmpty(value) || value[0] != 'r' || value.Length < 2)
+                {
+                    return false;
+                }
+
+                for (int i = 1; i < value.Length; i++)
+                {
+                    if (!char.IsDigit(value[i]))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
         }
     }

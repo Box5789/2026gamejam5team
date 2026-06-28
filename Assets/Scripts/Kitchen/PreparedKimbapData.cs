@@ -23,7 +23,7 @@ namespace KimbapGame.Kitchen
 
         public string ToExportString()
         {
-            return $"{ingredientType}:{variantId}";
+            return $"{ingredientType}:{variantId}:{displayName}";
         }
     }
 

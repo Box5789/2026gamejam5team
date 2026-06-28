@@ -592,9 +592,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f9d7d34026a7425fa925076e15f6119e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxSeaweedLayers: 5
-  maxRiceLayers: 5
-  maxFillingItems: 10
+  maxSeaweedLayers: 1
+  maxRiceLayers: 77
+  maxFillingItems: 307
   dropZone: {fileID: 143002}
   ricePaintBridge: {fileID: 131002}
   riceSurfacePrefab: {fileID: 100000, guid: ae771f05a21360547a3fdb1465862ae7, type: 3}
