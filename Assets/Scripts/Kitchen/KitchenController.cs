@@ -223,8 +223,6 @@ namespace KimbapGame.Kitchen
 
             string path = Path.Combine(Application.persistentDataPath, resultFileName);
             SavePreparedKimbap(path);
-            SharedOrderContext.SetEvaluationResult(KimbapEvaluator.Evaluate(SharedOrderContext.CurrentSheetOrder, preparedKimbap));
-            SharedOrderContext.CompleteCurrentOrder();
             hasSavedCurrentKimbap = true;
             lastSavedPath = path;
             Debug.Log($"Saved prepared kimbap data to {path}");

@@ -135,8 +135,11 @@ namespace KimbapGame.Order
         private void Start()
         {
             SetEvaluationMode(false);
-            ShowSavedOrderImageWhileLoading();
-            SetConversation(loadingMessage);
+            if (!ShowSavedOrderImageWhileLoading())
+            {
+                SetConversation(loadingMessage);
+            }
+
             StartCoroutine(LoadOrders());
         }
 
@@ -207,22 +210,35 @@ namespace KimbapGame.Order
             SceneManager.LoadScene(kitchenSceneName);
         }
 
-        private void ShowSavedOrderImageWhileLoading()
+        private bool ShowSavedOrderImageWhileLoading()
         {
             SheetOrderData savedOrder = SharedOrderContext.CurrentSheetOrder;
             string savedImageName = SharedOrderContext.CurrentOrderImageName;
+
+            if (savedOrder != null)
+            {
+                currentOrder = savedOrder;
+                currentOrderIndex = -1;
+
+                if (!string.IsNullOrWhiteSpace(savedOrder.orderDialogue))
+                {
+                    SetConversation(savedOrder.orderDialogue);
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(savedImageName))
             {
                 SetPersonImage(savedImageName, savedOrder == null ? string.Empty : GetFallbackOrderImageName(savedOrder));
-                return;
+                return true;
             }
 
             if (savedOrder == null)
             {
-                return;
+                return false;
             }
 
             SetPersonImage(GetOrderImageName(savedOrder));
+            return true;
         }
 
         private static string GetOrderImageName(SheetOrderData order)
