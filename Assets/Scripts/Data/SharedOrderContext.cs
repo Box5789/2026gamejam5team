@@ -15,6 +15,7 @@ namespace KimbapGame.Data
         public static bool HasPendingEvaluation => PendingEvaluationResult != null;
 
         public static event Action<CurrentOrder> CurrentOrderChanged;
+        public static event Action<KimbapEvaluationResult> EvaluationResultChanged;
 
         public static void SetCurrentOrder(OrderData orderData, SheetOrderData sheetOrderData = null, string orderImageName = "")
         {
@@ -39,6 +40,7 @@ namespace KimbapGame.Data
         public static void SetEvaluationResult(KimbapEvaluationResult result)
         {
             PendingEvaluationResult = result;
+            EvaluationResultChanged?.Invoke(result);
         }
 
         public static void ClearEvaluationResult()

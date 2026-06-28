@@ -25,17 +25,28 @@ public class DontDestroy : MonoBehaviour
             a=false;
             gameObject.transform.parent = null;
             DontDestroyOnLoad(gameObject);
+            var m=gameObject.GetComponentsInChildren<MonoBehaviour>();
+            Debug.Log(m.Length);
+            foreach (var item in m)
+                if(item.gameObject!=gameObject)
+                    item.enabled = false;
         }
-        if(SceneManager.GetActiveScene().name=="order")
+
+        if (SceneManager.GetActiveScene().name == "order")
+        {
             b = true;
+            
+        }
         if(SceneManager.GetActiveScene().name=="kitchen"&&b)
             Destroy(gameObject);
     }
 
     private void OnMouseDown()
     {
-        if(pickupCollider.enabled&&!mouseThrow.enabled)
+        if (pickupCollider.enabled && !mouseThrow.enabled)
+        {
             mouseThrow.enabled = true;
+        }
         
     }
 }
