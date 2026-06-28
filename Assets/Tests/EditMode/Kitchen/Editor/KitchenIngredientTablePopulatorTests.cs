@@ -1,4 +1,5 @@
 using System.Text;
+using KimbapGame.Audio;
 using KimbapGame.Kitchen;
 using NUnit.Framework;
 using UnityEditor;
@@ -21,6 +22,12 @@ namespace KimbapGame.Tests.Kitchen
         private GameObject riceRoot;
         private GameObject fillingRoot;
 
+        [SetUp]
+        public void SetUp()
+        {
+            KimbapSfxPlayer.ResetDiagnosticsForTests();
+        }
+
         [TearDown]
         public void TearDown()
         {
@@ -36,6 +43,7 @@ namespace KimbapGame.Tests.Kitchen
             Destroy(seaweedRoot);
             Destroy(riceRoot);
             Destroy(fillingRoot);
+            KimbapSfxPlayer.ResetDiagnosticsForTests();
         }
 
         [Test]
@@ -275,6 +283,7 @@ namespace KimbapGame.Tests.Kitchen
             try
             {
                 Assert.IsNotNull(preview);
+                Assert.AreEqual("Kitchen/Sound/재료 픽_mastered", KimbapSfxPlayer.LastRequestedResourcePath);
                 SpriteRenderer renderer = preview.GetComponent<SpriteRenderer>();
                 Assert.IsNotNull(renderer);
                 Assert.AreSame(expectedSprite, renderer.sprite);
@@ -306,6 +315,7 @@ namespace KimbapGame.Tests.Kitchen
             try
             {
                 Assert.IsNotNull(preview);
+                Assert.AreEqual("Kitchen/Sound/김 집기", KimbapSfxPlayer.LastRequestedResourcePath);
                 SpriteRenderer renderer = preview.GetComponent<SpriteRenderer>();
                 Assert.IsNotNull(renderer);
                 Assert.AreSame(expectedSprite, renderer.sprite);
@@ -367,6 +377,7 @@ namespace KimbapGame.Tests.Kitchen
             source.SendMessage("OnMouseDown");
 
             Assert.IsNull(FindSpawnedPreview());
+            Assert.AreEqual("Kitchen/Sound/밥 선택_mastered", KimbapSfxPlayer.LastRequestedResourcePath);
         }
 
         private KitchenIngredientTablePopulator CreatePopulator(

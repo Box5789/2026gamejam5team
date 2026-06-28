@@ -1,4 +1,5 @@
 using GameJam.Gameplay.Spreading;
+using KimbapGame.Audio;
 using KimbapGame.Data;
 using KimbapGame.Gameplay;
 using KimbapGame.Kitchen;
@@ -22,6 +23,7 @@ namespace KimbapGame.Tests.Kitchen
         public void SetUp()
         {
             SharedOrderContext.Clear();
+            KimbapSfxPlayer.ResetDiagnosticsForTests();
             rootObject = new GameObject("KitchenRollAnimatorTestsRoot");
             controllerObject = new GameObject("KitchenController");
             controller = controllerObject.AddComponent<KitchenController>();
@@ -48,6 +50,7 @@ namespace KimbapGame.Tests.Kitchen
             Object.DestroyImmediate(cameraObject);
             Object.DestroyImmediate(riceSurfacePrefab);
             SharedOrderContext.Clear();
+            KimbapSfxPlayer.ResetDiagnosticsForTests();
         }
 
         [Test]
@@ -370,6 +373,7 @@ namespace KimbapGame.Tests.Kitchen
             Assert.IsTrue(SharedOrderContext.HasPendingEvaluation);
             Assert.AreEqual(1, returnNavigator.ReturnCallCount);
             Assert.IsFalse(controller.CurrentRiceSurface.gameObject.activeSelf);
+            Assert.AreEqual("Kitchen/Sound/내보내기버튼", KimbapSfxPlayer.LastRequestedResourcePath);
         }
 
         [Test]
