@@ -535,6 +535,25 @@ MonoBehaviour:
   loadingMessage: "\uC8FC\uBB38\uC744 \uBD88\uB7EC\uC624\uB294 \uC911..."
   emptyMessage: "\uBC1B\uC744 \uC218 \uC788\uB294 \uC8FC\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."
   errorMessage: "\uC8FC\uBB38\uC744 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4."
+  currentOrder:
+    index: 
+    customerName: 
+    orderDialogue: 
+    orderImageName: 
+    hintDialogue: 
+    hintImageName: 
+    successDialogue: 
+    successImageName: 
+    failDialogue: 
+    failImageName: 
+    matchedImageName: 
+    seaweedName: 
+    seaweedCount: 0
+    riceName: 
+    riceCount: 0
+    fillingName: 
+    fillingCount: 0
+    ingredients: 
 --- !u!1 &291980770
 GameObject:
   m_ObjectHideFlags: 0
@@ -2388,6 +2407,7 @@ GameObject:
   - component: {fileID: 1608363463}
   - component: {fileID: 1608363462}
   - component: {fileID: 1608363461}
+  - component: {fileID: 1608363465}
   m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
@@ -2520,6 +2540,21 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 4.63, y: 3.77}
   m_EdgeRadius: 0
+--- !u!114 &1608363465
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608363459}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b71c96d6138a47e2848f91ae2db4fd6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  controller: {fileID: 0}
+  Particle: {fileID: 8384611067575593862, guid: 58caaae380de647d1ab13ab98f90a101, type: 3}
+  Particle2: {fileID: 8384611067575593862, guid: 0022379c460614ca7b6ebc17b9b5d060, type: 3}
 --- !u!1 &1609292831
 GameObject:
   m_ObjectHideFlags: 0
